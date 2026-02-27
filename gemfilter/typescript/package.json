@@ -1,7 +1,7 @@
 {
-  "name": "sandfilter",
+  "name": "gemfilter",
   "version": "0.1.0",
-  "description": "Sensitive Information Filter - Detect and mask sensitive information in text",
+  "description": "Privacy Protection Filter - Detect and protect sensitive information in text",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -10,6 +10,7 @@
   },
   "keywords": [
     "filter",
+    "privacy",
     "sensitive",
     "pii",
     "mask",

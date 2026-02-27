@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**SandFilter** - A lightweight, zero-dependency LLM filter that detects and masks sensitive information in text without using any LLM APIs.
+**GemFilter** - Privacy Protection Filter. Like filtering gems from sand, GemFilter protects your sensitive information from leaking to LLM and AI services.
 
 ## Python Version
 
@@ -24,13 +24,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Run tests
-python -m pytest sandfilter/tests/ -v
+python -m pytest gemfilter/tests/ -v
 
 # CLI usage
-python -m sandfilter.cli filter "test@example.com"
+python -m gemfilter.cli filter "test@example.com"
 
 # HTTP server
-python -m sandfilter.server.main --port 8080
+python -m gemfilter.server.main --port 8080
 ```
 
 ## Development Commands
@@ -45,7 +45,7 @@ uv pip install -e .
 ## Project Structure
 
 ```
-sandfilter/
+gemfilter/
 ├── core/                    # Core engine (Python)
 │   ├── __init__.py
 │   ├── rules.py             # Detection rules
@@ -75,11 +75,11 @@ sandfilter/
 
 ```bash
 # Filter text via CLI
-python -m sandfilter.cli filter "邮箱 test@example.com"
+python -m gemfilter.cli filter "邮箱 test@example.com"
 
 # Start HTTP server
-python -m sandfilter.server.main --port 8080
+python -m gemfilter.server.main --port 8080
 
 # Load config
-python -c "from sandfilter import SandFilter; sf = SandFilter.from_config('config.yaml')"
+python -c "from gemfilter import SandFilter; sf = SandFilter.from_config('config.yaml')"
 ```

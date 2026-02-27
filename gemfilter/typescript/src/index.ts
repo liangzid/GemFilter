@@ -1,11 +1,12 @@
 /**
- * SandFilter - Sensitive Information Filter
+ * GemFilter - Privacy Protection Filter
  *
- * A lightweight, zero-dependency filter that detects and masks
- * sensitive information in text without using any LLM APIs.
+ * A lightweight, zero-dependency filter that detects and protects
+ * sensitive information in text, like filtering gems from sand.
+ * Perfect for privacy protection in LLM and AI applications.
  *
  * Usage:
- * import { SandFilter } from 'sandfilter';
+ * import { SandFilter } from 'gemfilter';
  *
  * const sf = new SandFilter();
  * const result = sf.filter('My email is test@example.com');

@@ -3,7 +3,7 @@ Unit tests for SandFilter core functionality.
 """
 
 import pytest
-from sandfilter import SandFilter, DetectionRule, Processors
+from gemfilter import SandFilter, DetectionRule, Processors
 
 
 class TestSandFilter:

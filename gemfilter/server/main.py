@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-SandFilter HTTP Server
+GemFilter HTTP Server
 
-A simple HTTP server that provides SandFilter as a REST API.
+A simple HTTP server that provides GemFilter as a REST API.
+Privacy protection for LLM and AI applications.
 """
 
 import json
@@ -10,13 +11,13 @@ import argparse
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import parse_qs
 
-from sandfilter import SandFilter, FilterResult
+from gemfilter import SandFilter, FilterResult
 
 
 class FilterHandler(BaseHTTPRequestHandler):
-    """HTTP request handler for SandFilter API."""
+    """HTTP request handler for GemFilter API."""
 
-    sandfilter: SandFilter = None
+    gemfilter: SandFilter = None
 
     def do_GET(self):
         """Handle GET requests."""
@@ -30,8 +31,8 @@ class FilterHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             rules = {
-                "enabled": self.sandfilter.get_enabled_rules(),
-                "disabled": self.sandfilter.get_disabled_rules(),
+                "enabled": self.gemfilter.get_enabled_rules(),
+                "disabled": self.gemfilter.get_disabled_rules(),
             }
             self.wfile.write(json.dumps(rules).encode())
         else:
@@ -56,7 +57,7 @@ class FilterHandler(BaseHTTPRequestHandler):
                 return
 
             # Process the text
-            result = self.sandfilter.filter(text)
+            result = self.gemfilter.filter(text)
 
             # Build response
             response = {
@@ -97,7 +98,7 @@ class FilterHandler(BaseHTTPRequestHandler):
 
             results = []
             for text in texts:
-                result = self.sandfilter.filter(text)
+                result = self.gemfilter.filter(text)
                 results.append({
                     "text": result.text,
                     "detections": [
@@ -133,23 +134,23 @@ def run_server(
     port: int = 8080,
     config: str = None,
 ):
-    """Run the SandFilter HTTP server.
+    """Run the GemFilter HTTP server.
 
     Args:
         host: Host to bind to
         port: Port to listen on
         config: Optional config file path
     """
-    # Initialize SandFilter
+    # Initialize GemFilter
     if config:
-        sandfilter = SandFilter.from_config(config)
+        gemfilter = SandFilter.from_config(config)
     else:
-        sandfilter = SandFilter()
+        gemfilter = SandFilter()
 
-    FilterHandler.sandfilter = sandfilter
+    FilterHandler.gemfilter = gemfilter
 
     server = HTTPServer((host, port), FilterHandler)
-    print(f"SandFilter server running at http://{host}:{port}")
+    print(f"GemFilter server running at http://{host}:{port}")
     print(f"Endpoints:")
     print(f"  GET  /health     - Health check")
     print(f"  GET  /rules     - List enabled/disabled rules")
@@ -166,7 +167,7 @@ def run_server(
 
 def main():
     """Main entry point."""
-    parser = argparse.ArgumentParser(description="SandFilter HTTP Server")
+    parser = argparse.ArgumentParser(description="GemFilter HTTP Server")
     parser.add_argument(
         "--host",
         default="localhost",

@@ -1,8 +1,9 @@
 """
-SandFilter - Sensitive Information Filter
+GemFilter - Sensitive Information Filter
 
-A lightweight, zero-dependency LLM filter that detects and masks
-sensitive information in text without using any LLM APIs.
+A lightweight, zero-dependency filter that detects and protects
+sensitive information in text, like filtering gems from sand.
+Perfect for privacy protection in LLM and AI applications.
 """
 
 from .rules import DetectionRule, get_builtin_rules, get_builtin_rule

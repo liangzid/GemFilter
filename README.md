@@ -1,9 +1,27 @@
-# SandFilter
+# GemFilter
 
-A lightweight, zero-dependency LLM filter that detects and masks sensitive information in text without using any LLM APIs.
+**Privacy Protection Filter** - Like filtering gems from sand, GemFilter protects your sensitive information.
+
+## The Gem Metaphor
+
+Imagine your data as a mixture of sand and gems. Sensitive information like passwords, API keys, emails, and personal data** - valuable and are **gems private. Just as you would filter out gems from sand to keep them safe, **GemFilter** automatically detects and protects these sensitive pieces, preventing them from leaking into LLM prompts or AI systems.
+
+> "Don't let your gems fall into the sand" - Protect your sensitive information before it reaches the cloud.
+
+## Why GemFilter?
+
+When using LLM APIs or AI agents, sensitive information can accidentally be sent to external services, creating privacy risks. GemFilter acts as a **privacy shield**, automatically detecting and protecting:
+
+- **Personal Identifiable Information (PII)**: Names, addresses, phone numbers
+- **Credentials**: Passwords, API keys, tokens
+- **Financial Data**: Credit cards, bank accounts
+- **Network Info**: IP addresses, URLs
+
+GemFilter ensures your valuable data stays private while allowing safe content to pass through.
 
 ## Features
 
+- **Privacy Protection**: Automatically detect and protect sensitive information
 - **Multiple Processor Types**: Replace, partial mask, delete, hash, encrypt
 - **Extensible**: Add custom detection rules with regex patterns
 - **Configurable**: YAML/JSON configuration support
@@ -15,15 +33,15 @@ A lightweight, zero-dependency LLM filter that detects and masks sensitive infor
 ## Installation
 
 ```bash
-pip install sandfilter
+pip install gemfilter
 # or
-uv pip install sandfilter
+uv pip install gemfilter
 ```
 
 ## Quick Start
 
 ```python
-from sandfilter import SandFilter
+from gemfilter import SandFilter
 
 sf = SandFilter()
 result = sf.filter("我的邮箱是 test@example.com，手机 13800138000")
@@ -36,7 +54,7 @@ print(result.text)
 ### Basic Usage
 
 ```python
-from sandfilter import SandFilter, Processors, DetectionRule
+from gemfilter import SandFilter, Processors, DetectionRule
 
 # Default: replace with [RULE_NAME]
 sf = SandFilter()
@@ -100,32 +118,32 @@ sf = SandFilter.from_config("config.yaml")
 
 ```bash
 # Filter text
-sandfilter filter "邮箱 test@example.com"
+gemfilter filter "邮箱 test@example.com"
 
 # Filter from file
-sandfilter filter -i input.txt
+gemfilter filter -i input.txt
 
 # Filter with verbose output
-sandfilter filter "手机 13800138000" -v
+gemfilter filter "手机 13800138000" -v
 
 # List all rules
-sandfilter rules
+gemfilter rules
 
 # Disable specific rules
-sandfilter filter "test" --disable email phone_cn
+gemfilter filter "test" --disable email phone_cn
 
 # Use config file
-sandfilter filter "test" -c config.yaml
+gemfilter filter "test" -c config.yaml
 ```
 
 ## HTTP Server
 
 ```bash
 # Start server
-python -m sandfilter.server.main --port 8080
+python -m gemfilter.server.main --port 8080
 
 # Or use config
-python -m sandfilter.server.main --port 8080 --config config.yaml
+python -m gemfilter.server.main --port 8080 --config config.yaml
 ```
 
 ### API Endpoints
@@ -181,14 +199,49 @@ curl -X POST http://localhost:8080/filter/batch \
 
 Rules are processed by priority (lower number = higher priority). When a match is found, other rules cannot match overlapping portions.
 
+## Use Cases
+
+### Protect LLM Prompts
+
+```python
+# Filter sensitive data before sending to LLM
+user_input = "我的邮箱是 test@example.com，请帮我分析这份文档"
+filtered = sf.filter(user_input)
+# Send filtered.text to LLM - sensitive info is protected
+```
+
+### API Gateway Middleware
+
+```python
+# As middleware for API requests
+@app.post("/chat")
+async def chat(request: Request):
+    body = await request.body()
+    filtered = sf.filter(body)
+    # Proceed with filtered content
+```
+
+### Data Processing Pipeline
+
+```python
+# Clean user-generated content
+for item in user_messages:
+    cleaned = sf.filter(item)
+    store(cleaned.text)
+```
+
 ## TypeScript SDK
 
 ```typescript
-import { SandFilter, Processors, createRule } from 'sandfilter';
+import { SandFilter, Processors, createRule } from 'gemfilter';
 
 const sf = new SandFilter();
 const result = sf.filter('My email is test@example.com');
 console.log(result.text); // My email is [EMAIL]
 ```
 
-See `sandfilter/typescript/` for more details.
+See `gemfilter/typescript/` for more details.
+
+## License
+
+MIT

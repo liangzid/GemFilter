@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-SandFilter CLI
+GemFilter CLI
 
-Command-line interface for SandFilter.
+Command-line interface for GemFilter - Privacy Protection Filter.
 """
 
 import argparse
@@ -10,7 +10,7 @@ import sys
 import json
 from pathlib import Path
 
-from sandfilter import SandFilter
+from gemfilter import SandFilter
 
 
 def filter_command(args):
@@ -98,7 +98,7 @@ def list_rules_command(args):
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description="SandFilter - Sensitive Information Filter",
+        description="GemFilter - Privacy Protection Filter",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 

@@ -1,18 +1,19 @@
 """
-SandFilter Python SDK
+GemFilter Python SDK
 
-A lightweight, zero-dependency LLM filter that detects and masks
-sensitive information in text without using any LLM APIs.
+A lightweight, zero-dependency filter that detects and protects
+sensitive information in text, like filtering gems from sand.
+Perfect for privacy protection in LLM and AI applications.
 
 Usage:
-    from sandfilter import SandFilter, Rule, Processors
+    from gemfilter import SandFilter, Rule, Processors
 
     sf = SandFilter()
     result = sf.filter("我的邮箱是 test@example.com")
     print(result.text)  # 我的邮箱是 [EMAIL]
 """
 
-from sandfilter.core import (
+from gemfilter.core import (
     SandFilter,
     FilterPipeline,
     FilterResult,
