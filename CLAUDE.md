@@ -23,11 +23,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Running the Project
 
 ```bash
-# Run the main module
-python -m sandfilter
-
 # Run tests
 python -m pytest sandfilter/tests/ -v
+
+# CLI usage
+python -m sandfilter.cli filter "test@example.com"
+
+# HTTP server
+python -m sandfilter.server.main --port 8080
 ```
 
 ## Development Commands
@@ -47,18 +50,16 @@ sandfilter/
 │   ├── __init__.py
 │   ├── rules.py             # Detection rules
 │   ├── processors.py        # Text processors
-│   └── filter.py            # Main filter
+│   ├── filter.py            # Main filter
+│   └── config.py            # Config loader
 ├── python/                  # Python SDK wrapper
 ├── typescript/              # TypeScript SDK
-│   ├── src/
-│   │   ├── index.ts
-│   │   ├── rules.ts
-│   │   ├── processors.ts
-│   │   └── filter.ts
-│   ├── package.json
-│   └── tsconfig.json
+├── config/                  # Example configs
+├── server/                  # HTTP server
+│   └── main.py
 ├── tests/                   # Unit tests
 │   └── test_core.py
+├── cli.py                   # CLI tool
 ├── pyproject.toml
 └── README.md
 ```
@@ -69,3 +70,16 @@ sandfilter/
 - **Processor**: Handles how matched text is processed (replace, mask, delete, encrypt, hash)
 - **SandFilter**: Main class that orchestrates rules and processors
 - **FilterPipeline**: Processes text through rules and processors
+
+## Key Commands
+
+```bash
+# Filter text via CLI
+python -m sandfilter.cli filter "邮箱 test@example.com"
+
+# Start HTTP server
+python -m sandfilter.server.main --port 8080
+
+# Load config
+python -c "from sandfilter import SandFilter; sf = SandFilter.from_config('config.yaml')"
+```
