@@ -97,7 +97,7 @@ def _init_builtin_rules() -> None:
     register_builtin_rule(DetectionRule(
         name="id_card_cn",
         pattern=r"[1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]",
-        priority=5,
+        priority=2,  # Higher priority than credit_card
         sensitive_type="identification",
         group="identification",
         encryptable=True,

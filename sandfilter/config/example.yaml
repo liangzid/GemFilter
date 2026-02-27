@@ -1,0 +1,40 @@
+# SandFilter Configuration Example
+#
+# This file demonstrates how to configure SandFilter
+
+settings:
+  # Default processor for rules without explicit processor
+  # Options: replace, rule_name, partial_mask, delete, hash
+  default_processor: rule_name
+
+# Configure built-in rules
+rules:
+  # Disable a built-in rule
+  - name: email
+    enabled: false
+
+  # Configure processor for a built-in rule
+  - name: phone_cn
+    processor: partial_mask
+    processor_config:
+      preserve_prefix: 3
+      preserve_suffix: 4
+
+  # Customize replacement text
+  - name: password
+    processor: replace
+    processor_config:
+      replacement: "[PASSWORD]"
+
+  # Add custom rule
+  - name: student_id
+    pattern: "STU\\d{8}"
+    priority: 10
+    sensitive_type: education
+    group: custom
+    processor: replace
+    processor_config:
+      replacement: "[STUDENT_ID]"
+    description: Student ID number
+    enabled: true
+    encryptable: false

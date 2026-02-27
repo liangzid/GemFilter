@@ -104,8 +104,9 @@ class FilterPipeline:
         """
         detections: list[Detection] = []
         result_text = text
+        replaced_ranges: list[tuple[int, int]] = []  # Track replaced positions
 
-        # Sort rules by priority
+        # Sort rules by priority (lower number = higher priority)
         sorted_rules = sorted(self._rules, key=lambda r: r.priority)
 
         for rule in sorted_rules:
@@ -122,24 +123,33 @@ class FilterPipeline:
 
             # Find all matches
             for match in pattern.finditer(result_text):
+                start, end = match.start(), match.end()
+
+                # Skip if this range overlaps with already replaced text
+                if any(s < end and e > start for s, e in replaced_ranges):
+                    continue
+
                 matched_text = match.group()
                 replacement = processor.process(matched_text, rule.name)
 
                 detection = Detection(
                     rule_name=rule.name,
                     match=matched_text,
-                    start=match.start(),
-                    end=match.end(),
+                    start=start,
+                    end=end,
                     sensitive_type=rule.sensitive_type,
                     replacement=replacement,
                 )
                 detections.append(detection)
 
+                # Track this replacement
+                replaced_ranges.append((start, start + len(replacement)))
+
                 # Replace in text
                 result_text = (
-                    result_text[: match.start()]
+                    result_text[:start]
                     + replacement
-                    + result_text[match.end() :]
+                    + result_text[end:]
                 )
 
         return FilterResult(text=result_text, detections=detections)
@@ -166,17 +176,74 @@ class SandFilter:
     def __init__(
         self,
         default_processor: Optional[Processor] = None,
+        load_builtin_rules: bool = True,
     ):
         """Initialize SandFilter.
 
         Args:
             default_processor: Default processor for rules (defaults to [RULE_NAME])
+            load_builtin_rules: Whether to load built-in rules (default: True)
         """
         self._pipeline = FilterPipeline()
         self._default_processor = default_processor or RuleNameReplaceProcessor()
 
-        # Load built-in rules
-        self._load_builtin_rules()
+        # Load built-in rules if requested
+        if load_builtin_rules:
+            self._load_builtin_rules()
+
+    @classmethod
+    def from_config(
+        cls,
+        config_path: str,
+        default_processor: Optional[Processor] = None,
+    ) -> "SandFilter":
+        """Create SandFilter instance from config file.
+
+        Args:
+            config_path: Path to YAML or JSON config file
+            default_processor: Default processor for rules
+
+        Returns:
+            SandFilter instance
+        """
+        from .config import load_config, parse_rule_from_config, parse_processor_from_config
+
+        config = load_config(config_path)
+
+        # Get default processor from config
+        settings = config.get("settings", {})
+        if default_processor is None:
+            processor_name = settings.get("default_processor", "rule_name")
+            if isinstance(processor_name, str):
+                default_processor = Processors.rule_name() if processor_name == "rule_name" else Processors.replace()
+
+        # Create instance with built-in rules (will be configured below)
+        sf = cls(default_processor=default_processor, load_builtin_rules=True)
+
+        # Apply rule configurations from config
+        rules_config = config.get("rules", [])
+        for rule_config in rules_config:
+            rule_name = rule_config.get("name")
+
+            # Check if rule has a pattern (new custom rule)
+            if "pattern" in rule_config:
+                # New custom rule
+                rule = parse_rule_from_config(rule_config)
+                processor = parse_processor_from_config(rule_config.get("processor", "rule_name"))
+                sf.add_rule(rule, processor)
+            else:
+                # Configure existing built-in rule
+                if "enabled" in rule_config:
+                    if rule_config["enabled"]:
+                        sf.enable_rules(rule_name)
+                    else:
+                        sf.disable_rules(rule_name)
+
+                if "processor" in rule_config:
+                    processor = parse_processor_from_config(rule_config["processor"])
+                    sf.set_processor(rule_name, processor)
+
+        return sf
 
     def _load_builtin_rules(self) -> None:
         """Load all built-in rules (create copies to avoid shared state)."""
