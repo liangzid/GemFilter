@@ -7,7 +7,73 @@
   <a href="https://github.com/liangzid/GemFilter/actions"><img src="https://img.shields.io/github/actions/workflow/status/liangzid/GemFilter/test.yml?style=flat-square" alt="Tests"></a>
 </p>
 
-**Privacy Protection Filter** — Like filtering gems from sand, GemFilter protects your sensitive information.
+**Privacy Protection Filter** — Like filtering gems from sand, GemFilter protects your sensitive information from leaking to LLM and AI services.
+
+---
+
+## 🎯 GemFilter Skill (AI Agent Integration)
+
+GemFilter works as a **skill** that integrates directly with AI coding agents, providing automatic privacy protection:
+
+- **Pre-send filtering**: Automatically masks gems before they leave your machine
+- **Post-receive restoration**: Ensures gems are never exposed in responses
+- **Visual feedback**: Partially masked content with user notifications
+- **Session tracking**: Mappings persist across multi-turn conversations
+
+### Quick Start with Claude Code
+
+```bash
+# Install the skill
+python -m gemfilter.skill.install --agent claude_code
+```
+
+Your prompts are now automatically protected:
+
+```
+You: Send email to john@example.com with my API key sk-abc123...
+GemFilter: 🔒 GemFilter: 2 gems protected
+
+AI Response: I see you want to send an email...
+```
+
+### Supported Agents
+
+| Agent | Integration | Status |
+|-------|-------------|--------|
+| Claude Code | settings.json hooks | ✅ Stable |
+| OpenCode | Plugin system | ✅ Stable |
+| Codex | MCP protocol | ✅ Stable |
+
+### How It Works
+
+```
+User Input: "Email: john@example.com, Key: sk-abc123..."
+                    ↓
+         ┌─────────────────────┐
+         │   Pre-send Hook    │
+         │   (GemMasker)      │
+         └─────────────────────┘
+                    ↓
+Masked:   "Email: j***@example.com_ema, Key: sk-***123_ema"
+                    ↓
+              ┌─────────┐
+              │ LLM API │
+              └─────────┘
+                    ↓
+LLM Response: "I see your email j***@example.com_ema..."
+                    ↓
+         ┌─────────────────────┐
+         │  Post-receive Hook │
+         │   (GemUnmasker)    │
+         └─────────────────────┘
+                    ↓
+Sanitized: "I see your email [FILTERED]..."
+```
+
+For detailed documentation, see:
+- [Skill README](gemfilter/skill/README.md)
+- [Configuration Guide](docs/CONFIGURATION.md)
+- [Developer Guide](docs/DEVELOPER_GUIDE.md)
 
 ---
 
@@ -55,6 +121,22 @@ When using LLM APIs or AI agents, sensitive information can **accidentally leak*
 | 🆔 **PII** | Names, ID numbers, passport info |
 | 🌐 **Network Info** | IP addresses, URLs, MAC addresses |
 
+### Supported Gem Types
+
+| Type | Example | Masked As |
+|------|---------|-----------|
+| Email | `john@example.com` | `j***@example.com` |
+| Phone (CN) | `13812345678` | `138****5678` |
+| Phone (US) | `(123) 456-7890` | `(***) ***-7890` |
+| API Key | `sk-abc123xyz...` | `sk-***xyz` |
+| AWS Key | `AKIAIOSFODNN7...` | `AKIA***...7` |
+| Password | `password=secret` | `[PASSWORD]` |
+| Credit Card | `4111-1111-1111-1111` | `4111 **** **** 1111` |
+| ID Card (CN) | `110101199001011234` | `1***********4` |
+| Private Key | `-----BEGIN RSA...` | `[PRIVATE_KEY]` |
+| IPv4 | `192.168.1.100` | `192.168.***.***` |
+| URL | `https://api.example.com` | `https://***.example.com` |
+
 ---
 
 ## 🚀 Features
@@ -83,6 +165,8 @@ uv pip install gemfilter
 
 ## ⚡ Quick Start
 
+### Python SDK
+
 ```python
 from gemfilter import SandFilter
 
@@ -90,6 +174,17 @@ sf = SandFilter()
 result = sf.filter("My email is test@example.com, phone 13800138000")
 print(result.text)
 # Output: My email is [EMAIL], phone [PHONE_CN]
+```
+
+### Python Skill API
+
+```python
+from gemfilter.skill import HookManager
+
+manager = HookManager()
+result = manager.pre_send("Send to: john@example.com")
+print(result.payload)  # "Send to: j***@example.com"
+print(result.notification)  # "🔒 GemFilter: 1 gem protected"
 ```
 
 ---
@@ -149,9 +244,9 @@ sf = SandFilter.from_config("config.yaml")
 
 ```bash
 # Filter text
-gemfilter filter " test@example.com"
+gemfilter filter "test@example.com"
 
-Email# Filter from file
+# Filter from file
 gemfilter filter -i input.txt
 
 # Verbose output
