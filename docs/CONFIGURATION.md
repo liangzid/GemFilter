@@ -237,14 +237,16 @@ python -m gemfilter.skill.install --agent claude_code
 
 ### OpenCode
 
+Current OpenCode versions use a JavaScript plugin array in `~/.config/opencode/opencode.json`. The recommended setup is documented in the main README and `gemfilter/skill/README.md`.
+
 ```yaml
 agents:
   opencode:
     enabled: true
-    # Uses plugin system
+    # Legacy adapter config; current OpenCode should use the JS plugin.
 ```
 
-OpenCode uses a plugin manifest. The adapter creates:
+The legacy Python adapter may create this older shape:
 
 ```json
 {
@@ -257,6 +259,14 @@ OpenCode uses a plugin manifest. The adapter creates:
       }
     }
   }
+}
+```
+
+For OpenCode 1.14+, prefer:
+
+```json
+{
+  "plugin": ["/home/YOUR_USER/.config/opencode/gemfilter-plugin.mjs"]
 }
 ```
 

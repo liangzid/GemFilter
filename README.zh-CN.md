@@ -12,6 +12,14 @@
   GemFilter 在敏感开发者数据进入 LLM、工具结果、日志或 agent 上下文前，对其进行检测、遮蔽、追踪和净化。
 </p>
 
+<p align="center">
+  <a href="README.md">English</a> ·
+  <a href="#复制给-agent-的安装提示词">复制给 Agent 的安装提示词</a> ·
+  <a href="#隐私边界模型">隐私边界模型</a> ·
+  <a href="#遮蔽模式">遮蔽模式</a> ·
+  <a href="#agent-集成">Agent 集成</a>
+</p>
+
 ---
 
 ## 复制给 Agent 的安装提示词

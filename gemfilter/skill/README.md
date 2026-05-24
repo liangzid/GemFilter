@@ -1,19 +1,35 @@
 # GemFilter Skill
 
-🔒 **Privacy Protection Skill for AI Coding Agents**
+**Privacy protection layer for AI coding agents**
 
-Like filtering gems from sand, GemFilter protects your sensitive information from leaking to LLM and AI services.
+GemFilter Skill is the agent-facing layer on top of the GemFilter detector and masker. It provides hook helpers, local session mapping, tool-output filtering, and agent integration files for privacy-sensitive coding workflows.
 
 ---
 
 ## Overview
 
-GemFilter Skill provides a plug-and-play privacy protection layer that:
+GemFilter Skill provides:
 
-- **Pre-send filtering**: Masks sensitive gems before they leave your machine
-- **Post-receive restoration**: Ensures gems are never exposed in responses
-- **Visual feedback**: Shows partially masked content with user notifications
-- **Multi-agent support**: Works with Claude Code, OpenCode, Codex, and more
+- **Pre-send filtering**: masks sensitive values before they leave the local agent context.
+- **Tool-output filtering**: recursively filters strings in command, MCP, or tool results before model ingestion.
+- **Post-receive sanitization**: filters model responses that echo secrets or placeholders.
+- **Local session mapping**: keeps surrogate-to-original mappings on the local machine.
+- **Agent integration helpers**: installs or documents integration surfaces for Claude Code, OpenCode, and Codex/MCP-style workflows.
+
+## Maturity Status
+
+The skill is useful today, but it should be treated as a practical v0.2 integration layer rather than a finished security product.
+
+| Area | Status | Notes |
+|------|--------|-------|
+| Core masker and hooks | Stable enough for local use | Covered by unit tests; supports strict, balanced, and utility masking modes. |
+| Safe CLI/API serialization | Stable enough for local use | Raw matches are hidden by default unless explicitly requested for unsafe debugging. |
+| Tool-output filtering | Usable | Recursive string filtering is implemented and tested. |
+| Claude Code installer | Usable | Writes project-local hook settings. Verify against your installed Claude Code version. |
+| Codex/MCP adapter | Experimental | Provides MCP-style config/schema; real host behavior may vary. |
+| OpenCode installer adapter | Legacy compatibility only | Current OpenCode 1.14+ should use the JavaScript plugin approach below, not `--agent opencode`. |
+
+Recommendation: keep the skill module. It is the right place for reusable hook logic and agent adapters. The OpenCode adapter should be modified in a future release to generate the tested JavaScript plugin automatically.
 
 ### Supported Gem Types
 
@@ -51,11 +67,11 @@ GemFilter Skill provides a plug-and-play privacy protection layer that:
 ### Install GemFilter Skill
 
 ```bash
-# Install in development mode
-pip install -e .
+# Recommended stable install
+pip install gemfilter
 
-# Or install from source
-python -m pip install git+https://github.com/yourrepo/gemfilter.git
+# Development install from a local checkout
+pip install -e .
 ```
 
 ### Install for Claude Code
@@ -77,12 +93,78 @@ python -m gemfilter.skill.install --agent claude_code --uninstall
 
 ### Install for OpenCode
 
+For current OpenCode versions, use the JavaScript plugin approach instead of the legacy Python adapter:
+
 ```bash
-cd your-project
 pip install gemfilter
+mkdir -p ~/.config/opencode
+```
+
+Create `~/.config/opencode/gemfilter-plugin.mjs`:
+
+```js
+import { spawnSync } from "node:child_process";
+
+const PYTHON = process.env.GEMFILTER_PYTHON || "python3";
+const DISABLED = process.env.GEMFILTER_OPENCODE_DISABLED === "1";
+
+function filterText(text) {
+  if (DISABLED || typeof text !== "string" || text.length === 0) return text;
+  const result = spawnSync(PYTHON, ["-m", "gemfilter.cli", "filter"], {
+    input: text,
+    encoding: "utf8",
+    maxBuffer: 10 * 1024 * 1024,
+  });
+  if (result.status !== 0 || result.error) return text;
+  return result.stdout.endsWith("\n") ? result.stdout.slice(0, -1) : result.stdout;
+}
+
+export default async function GemFilterPlugin() {
+  return {
+    "experimental.chat.messages.transform": async (_input, output) => {
+      for (const message of output.messages ?? []) {
+        for (const part of message.parts ?? []) {
+          if (part?.type === "text" && typeof part.text === "string") {
+            part.text = filterText(part.text);
+          }
+        }
+      }
+    },
+  };
+}
+```
+
+Then add the plugin path to `~/.config/opencode/opencode.json`:
+
+```json
+{
+  "plugin": ["/home/YOUR_USER/.config/opencode/gemfilter-plugin.mjs"]
+}
+```
+
+Test with fake values:
+
+```bash
+opencode run --format json \
+  "Repeat exactly this one line and nothing else: Contact user@example.com and OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz123456"
+```
+
+Expected assistant text:
+
+```text
+Contact [EMAIL] and OPENAI_API_KEY=[OPENAI_API_KEY]
+```
+
+Temporary disable:
+
+```bash
+GEMFILTER_OPENCODE_DISABLED=1 opencode
+```
+
+The legacy command below is retained for older assumptions and tests, but it is not the recommended path for OpenCode 1.14+:
+
+```bash
 python -m gemfilter.skill.install --agent opencode
-python -m gemfilter.skill.install --agent opencode --status
-python -m gemfilter.skill.install --agent opencode --uninstall
 ```
 
 ### Install for Codex (MCP)

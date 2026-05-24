@@ -15,6 +15,7 @@
 <p align="center">
   <a href="#quick-start">Quick Start</a> ·
   <a href="#copy-paste-agent-setup">Agent Setup Prompt</a> ·
+  <a href="README.zh-CN.md">中文版</a> ·
   <a href="#agent-privacy-boundary">Agent Privacy Boundary</a> ·
   <a href="#masking-modes">Masking Modes</a> ·
   <a href="#interfaces">Interfaces</a> ·
