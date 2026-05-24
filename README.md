@@ -14,11 +14,64 @@
 
 <p align="center">
   <a href="#quick-start">Quick Start</a> ·
+  <a href="#copy-paste-agent-setup">Agent Setup Prompt</a> ·
   <a href="#agent-privacy-boundary">Agent Privacy Boundary</a> ·
   <a href="#masking-modes">Masking Modes</a> ·
   <a href="#interfaces">Interfaces</a> ·
   <a href="#configuration">Configuration</a>
 </p>
+
+---
+
+## Copy-paste Agent Setup
+
+Already using a coding agent? Copy this prompt and send it to the agent from the project where you want GemFilter enabled:
+
+```text
+Please install and configure GemFilter for this coding-agent project.
+
+What I want:
+- Clone or inspect the GemFilter project from https://github.com/liangzid/GemFilter.
+- Install GemFilter with pip.
+- Read the relevant installation/configuration docs before changing my agent config.
+- Configure GemFilter for the coding agent used in this project.
+- Run a safe smoke test with fake secrets only.
+- Do not print, copy, summarize, or expose any real secrets from my machine.
+
+Steps:
+1. Clone GemFilter somewhere temporary if the repo is not already available:
+   git clone https://github.com/liangzid/GemFilter.git
+2. Read these files from the GemFilter repo:
+   - README.md
+   - gemfilter/skill/README.md
+   - docs/CONFIGURATION.md
+3. Before installing, ask me which privacy level I want:
+   - strict: maximum privacy; use typed placeholders such as <EMAIL_1>.
+   - balanced: default; preserve useful syntax while hiding values, such as <EMAIL_LOCAL_1>@<EMAIL_DOMAIN_1>.
+   - utility: preserve more task utility with plausible fake values, such as user1@example.test.
+   If I do not answer, use balanced.
+4. Install GemFilter:
+   pip install gemfilter
+5. Detect the coding-agent environment in this project:
+   - Claude Code: .claude/ or .claude/settings.json
+   - OpenCode: ~/.config/opencode/opencode.json or .opencode/
+   - Codex/MCP: .codex/ or MCP config
+6. Configure the matching integration according to the docs you read.
+7. Configure the requested privacy level with masking_mode: strict, balanced, or utility where GemFilter config is used.
+8. Run a safe local smoke test with fake values only:
+   python -m gemfilter.cli filter "Contact user@example.com and OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz123456"
+9. If configuring OpenCode, run one non-interactive opencode test with fake values and compare:
+   - GemFilter enabled
+   - GEMFILTER_OPENCODE_DISABLED=1
+10. Report:
+   - which agent integration was configured,
+   - which privacy level was selected,
+   - which config files changed,
+   - how to disable or uninstall it,
+   - whether the smoke test proves that fake email/API key values were filtered.
+
+If multiple agent environments are present, ask me which one to configure before making changes.
+```
 
 ---
 
@@ -273,49 +326,10 @@ curl -X POST http://localhost:8080/filter \
 
 Install GemFilter into the coding-agent project where you want local privacy protection. The installer writes agent-specific hook configuration in the current working directory.
 
-### Copy-paste Agent Setup Prompt
-
-If you are already using a coding agent, you can copy this prompt and send it to the agent from the root of your project:
-
-```text
-Please install and configure GemFilter for this coding-agent project.
-
-Goal:
-- Protect my local privacy before prompts, tool outputs, file contents, shell outputs, or MCP results enter model context.
-- Use GemFilter's local hooks where supported.
-- Do not print or expose any real secrets while configuring or testing.
-
-Steps:
-1. Detect which agent environment this project uses:
-   - Claude Code if .claude/ exists or settings should be written to .claude/settings.json.
-   - OpenCode if .opencode/ exists or config should be written to .opencode/config.json.
-   - Codex/MCP if .codex/ exists or MCP config should be written to .codex/mcp_config.json.
-2. Install GemFilter if needed:
-   pip install gemfilter
-3. Configure the matching adapter:
-   - Claude Code:
-     python -m gemfilter.skill.install --agent claude_code
-   - OpenCode:
-     python -m gemfilter.skill.install --agent opencode
-   - Codex/MCP:
-     python -m gemfilter.skill.install --agent coodex
-4. Verify installation:
-   python -m gemfilter.skill.install --status
-5. Run a safe local smoke test without using real secrets:
-   python -m gemfilter.cli filter "Contact user@example.com and OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz123456"
-6. Report exactly:
-   - which adapter was installed,
-   - which config file changed,
-   - whether status checks passed,
-   - whether the smoke test masked the email and fake API key.
-
-If multiple agent environments are present, ask me which one to configure before making changes.
-```
-
 | Agent | Integration surface | Hook coverage |
 |---|---|---|
 | Claude Code | `settings.json` hooks | pre-send, post-receive, tool-output |
-| OpenCode | plugin hooks | pre-send, post-receive, tool-output |
+| OpenCode | plugin hooks | chat message transform |
 | Codex | MCP-style tool/resource schema | filter, restore, tool-output filter |
 
 ### Claude Code
@@ -350,33 +364,77 @@ python -m gemfilter.skill.install --agent claude_code --uninstall
 
 ### OpenCode
 
-From the root of your coding project:
+OpenCode 1.14+ uses a real JavaScript plugin API. The recommended integration is a local plugin that filters text in `experimental.chat.messages.transform` before messages enter model context.
+
+Minimal global plugin setup:
 
 ```bash
 pip install gemfilter
-python -m gemfilter.skill.install --agent opencode
-python -m gemfilter.skill.install --agent opencode --status
+mkdir -p ~/.config/opencode
 ```
 
-This creates or updates:
+Create `~/.config/opencode/gemfilter-plugin.mjs`:
 
-```text
-.opencode/config.json
+```js
+import { spawnSync } from "node:child_process";
+
+const PYTHON = process.env.GEMFILTER_PYTHON || "python3";
+const DISABLED = process.env.GEMFILTER_OPENCODE_DISABLED === "1";
+
+function filterText(text) {
+  if (DISABLED || typeof text !== "string" || text.length === 0) return text;
+  const result = spawnSync(PYTHON, ["-m", "gemfilter.cli", "filter"], {
+    input: text,
+    encoding: "utf8",
+    maxBuffer: 10 * 1024 * 1024,
+  });
+  if (result.status !== 0 || result.error) return text;
+  return result.stdout.endsWith("\n") ? result.stdout.slice(0, -1) : result.stdout;
+}
+
+export default async function GemFilterPlugin() {
+  return {
+    "experimental.chat.messages.transform": async (_input, output) => {
+      for (const message of output.messages ?? []) {
+        for (const part of message.parts ?? []) {
+          if (part?.type === "text" && typeof part.text === "string") {
+            part.text = filterText(part.text);
+          }
+        }
+      }
+    },
+  };
+}
 ```
 
-Registered hooks:
+Then add the plugin path to `~/.config/opencode/opencode.json`:
 
-```text
-pre_send     -> gemfilter.skill.hooks.pre_send_hook
-post_receive -> gemfilter.skill.hooks.post_receive_hook
-tool_output  -> gemfilter.skill.hooks.tool_output_hook
+```json
+{
+  "plugin": ["/home/YOUR_USER/.config/opencode/gemfilter-plugin.mjs"]
+}
 ```
 
-Uninstall:
+Test with a real non-interactive OpenCode call using fake secrets:
 
 ```bash
-python -m gemfilter.skill.install --agent opencode --uninstall
+opencode run --format json \
+  "Repeat exactly this one line and nothing else: Contact user@example.com and OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz123456"
 ```
+
+Expected assistant text:
+
+```text
+Contact [EMAIL] and OPENAI_API_KEY=[OPENAI_API_KEY]
+```
+
+Temporary disable:
+
+```bash
+GEMFILTER_OPENCODE_DISABLED=1 opencode
+```
+
+The legacy `python -m gemfilter.skill.install --agent opencode` adapter is kept for compatibility with older assumptions, but current OpenCode versions should use the plugin approach above.
 
 ### Codex / MCP
 
