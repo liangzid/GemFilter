@@ -19,17 +19,25 @@ GemFilter Skill provides a plug-and-play privacy protection layer that:
 
 | Type | Example | Masked As |
 |------|---------|-----------|
-| Email | `john@example.com` | `j***@example.com` |
-| Phone (CN) | `13812345678` | `138****5678` |
-| Phone (US) | `(123) 456-7890` | `(***) ***-7890` |
-| API Key | `sk-abc123xyz...` | `sk-***xyz` |
-| AWS Key | `AKIAIOSFODNN7...` | `AKIA***...7` |
-| Password | `password=secret` | `[PASSWORD]` |
-| Credit Card | `4111-1111-1111-1111` | `4111 **** **** 1111` |
-| ID Card (CN) | `110101199001011234` | `1***********4` |
-| Private Key | `-----BEGIN RSA...` | `[PRIVATE_KEY]` |
-| IPv4 | `192.168.1.100` | `192.168.***.***` |
-| URL | `https://api.example.com` | `https://***.example.com` |
+| Email | `john@example.com` | `<EMAIL_LOCAL_1>@<EMAIL_DOMAIN_1>` |
+| Phone (CN) | `13812345678` | `<PHONE_1>` |
+| Phone (US) | `(123) 456-7890` | `<PHONE_1>` |
+| API Key | `sk-abc123xyz...` | `<SECRET_1>` |
+| OpenAI Key | `sk-proj-...` | `<OPENAI_KEY_1>` |
+| Anthropic Key | `sk-ant-...` | `<ANTHROPIC_KEY_1>` |
+| GitHub Token | `ghp_...` | `<GITHUB_TOKEN_1>` |
+| AWS Key | `AKIAIOSFODNN7...` | `<AWS_ACCESS_KEY_1>` |
+| npm Token | `npm_...` | `<NPM_TOKEN_1>` |
+| PyPI Token | `pypi-...` | `<PYPI_TOKEN_1>` |
+| JWT | `eyJ...` | `<JWT_1>` |
+| Password | `password=secret` | `<PASSWORD_1>` |
+| `.env` Secret | `SERVICE_TOKEN=...` | `<SECRET_1>` |
+| Database URL | `postgres://user:pass@host/db` | `<DATABASE_URL_1>` |
+| Credit Card | `4111-1111-1111-1111` | `<CREDIT_CARD_1>` |
+| ID Card (CN) | `110101199001011234` | `<ID_CARD_1>` |
+| Private Key | `-----BEGIN RSA...` | `<PRIVATE_KEY_1>` |
+| IPv4 | `192.168.1.100` | `10.0.1.1` |
+| URL | `https://api.example.com` | `https://<HOST_1>` |
 
 ---
 
@@ -98,12 +106,19 @@ hook_manager = HookManager()
 
 # Pre-send: Mask gems
 result = hook_manager.pre_send("Send to: john@example.com")
-print(result.payload)  # "Send to: j***@example.com"
+print(result.payload)  # "Send to: <EMAIL_LOCAL_1>@<EMAIL_DOMAIN_1>"
 print(result.notification)  # "🔒 GemFilter: 1 gem protected"
 
 # Post-receive: Sanitize response
 response = hook_manager.post_receive("I received: j***@example.com_ema")
 print(response.payload)  # "I received: [FILTERED]"
+
+# Tool-output: Filter local tool results before model ingestion
+tool_result = hook_manager.filter_tool_output({
+    "stdout": "OPENAI_API_KEY=sk-proj-...",
+    "stderr": "Contact admin@example.com",
+})
+print(tool_result.payload)
 ```
 
 ### Integration Example
@@ -151,7 +166,8 @@ skill:
     show_types: true
     show_count: true
 
-  mask_style: "partial"  # partial | full | hash
+  mask_style: "partial"  # legacy: partial | full | hash
+  masking_mode: "balanced"  # strict | balanced | utility
   preserve_format: true
 
   agents:
@@ -165,13 +181,13 @@ skill:
 ### Custom Configuration
 
 ```python
-from gemfilter.skill import SkillConfig, UINotifier, NotificationStyle
+from gemfilter.skill import SkillConfig, UINotifier, NotificationStyle, MaskingMode
 
 # Create custom config
 config = SkillConfig()
 config.auto_activate = True
 config.notification.style = NotificationStyle.DETAILED
-config.mask_style = MaskStyle.FULL
+config.masking_mode = MaskingMode.STRICT
 
 # Save to file
 save_skill_config(config, "my-config.yaml")
@@ -179,6 +195,18 @@ save_skill_config(config, "my-config.yaml")
 # Load custom config
 config = load_skill_config("my-config.yaml")
 ```
+
+### Masking Modes
+
+GemFilter supports three surrogate strategies:
+
+| Mode | Example | Best for |
+|------|---------|----------|
+| `strict` | `john@example.com` -> `<EMAIL_1>` | Maximum privacy for high-risk contexts |
+| `balanced` | `john@example.com` -> `<EMAIL_LOCAL_1>@<EMAIL_DOMAIN_1>` | Default coding-agent use; preserves syntax while hiding values |
+| `utility` | `john@example.com` -> `user1@example.test` | Tests, examples, and tasks that need plausible fake data |
+
+Secrets such as API keys, passwords, bearer tokens, and private keys use typed placeholders even in balanced mode.
 
 ---
 
@@ -220,14 +248,49 @@ config = load_skill_config("my-config.yaml")
 When you send text to an LLM:
 
 1. **Detection**: `GemMasker` scans the text for sensitive patterns
-2. **Masking**: Real gems are replaced with visually similar fakes
-3. **Mapping**: Original → Fake mapping stored securely in session
+2. **Masking**: Real gems are replaced with typed, structure-preserving, or format-preserving surrogates
+3. **Mapping**: Fake → original mapping stored in the local session
 4. **Notification**: User is notified of protection
 
 ```
 Input:  "Email: john.doe@example.com"
-Output: "Email: j***@example.com_ema"
+Output: "Email: <EMAIL_LOCAL_1>@<EMAIL_DOMAIN_1>"
         "🔒 GemFilter: 1 gem protected"
+```
+
+### 1.5. Tool-output Hook
+
+Before shell output, file reads, MCP tool results, or other local tool outputs are added to model context:
+
+1. **Recursive filtering**: strings inside dicts and lists are scanned.
+2. **Session reuse**: existing surrogates are reused within the same session.
+3. **Structured preservation**: non-string metadata such as exit codes is preserved.
+
+```python
+result = manager.filter_tool_output({
+    "tool": "shell",
+    "stdout": "DATABASE_URL=postgres://user:pass@db.internal:5432/app",
+    "exit_code": 0,
+})
+
+print(result.payload["stdout"])  # "DATABASE_URL=<DATABASE_URL_1>"
+print(result.payload["exit_code"])  # 0
+```
+
+Tool-output filtering can reduce coding-agent utility if a public string must be passed to the model exactly. You can disable it globally:
+
+```yaml
+filter:
+  filter_tool_outputs: false
+```
+
+Or skip one structured payload explicitly:
+
+```python
+result = manager.filter_tool_output({
+    "gemfilter_skip": True,
+    "stdout": "public value that must remain exact",
+})
 ```
 
 ### 2. Post-receive Hook

@@ -28,6 +28,13 @@ class MaskStyle(Enum):
     HASH = "hash"
 
 
+class MaskingMode(Enum):
+    """Surrogate masking mode options."""
+    STRICT = "strict"
+    BALANCED = "balanced"
+    UTILITY = "utility"
+
+
 class AgentType(Enum):
     """Supported AI agent types."""
     CLAUDE_CODE = "claude_code"
@@ -59,6 +66,7 @@ class FilterConfig:
     config_path: Optional[str] = None
     auto_update: bool = True
     enabled_types: List[str] = field(default_factory=list)
+    filter_tool_outputs: bool = True
 
 
 @dataclass
@@ -70,6 +78,7 @@ class SkillConfig:
     activate_on: List[str] = field(default_factory=lambda: ["context_build", "api_request", "tool_call"])
     notification: NotificationConfig = field(default_factory=NotificationConfig)
     mask_style: MaskStyle = MaskStyle.PARTIAL
+    masking_mode: MaskingMode = MaskingMode.BALANCED
     preserve_format: bool = True
     agents: Dict[AgentType, AgentConfig] = field(default_factory=dict)
     filter_config: FilterConfig = field(default_factory=FilterConfig)
@@ -122,6 +131,7 @@ class SkillConfig:
 
         # Parse mask style
         mask_style = MaskStyle(data.get("mask_style", "partial"))
+        masking_mode = MaskingMode(data.get("masking_mode", "balanced"))
 
         # Parse filter config
         filter_data = data.get("filter", {})
@@ -129,6 +139,7 @@ class SkillConfig:
             config_path=filter_data.get("config_path"),
             auto_update=filter_data.get("auto_update", True),
             enabled_types=filter_data.get("enabled_types", []),
+            filter_tool_outputs=filter_data.get("filter_tool_outputs", True),
         )
 
         # Parse agents
@@ -152,6 +163,7 @@ class SkillConfig:
             activate_on=data.get("activate_on", ["context_build", "api_request", "tool_call"]),
             notification=notification,
             mask_style=mask_style,
+            masking_mode=masking_mode,
             preserve_format=data.get("preserve_format", True),
             agents=agents,
             filter_config=filter_config,
@@ -172,6 +184,7 @@ class SkillConfig:
                 "custom_banner": self.notification.custom_banner,
             },
             "mask_style": self.mask_style.value,
+            "masking_mode": self.masking_mode.value,
             "preserve_format": self.preserve_format,
             "agents": {
                 agent_type.value: {
@@ -184,6 +197,7 @@ class SkillConfig:
                 "config_path": self.filter_config.config_path,
                 "auto_update": self.filter_config.auto_update,
                 "enabled_types": self.filter_config.enabled_types,
+                "filter_tool_outputs": self.filter_config.filter_tool_outputs,
             },
         }
 

@@ -126,6 +126,10 @@ class GemUnmasker:
             List of detected fake placeholder strings
         """
         fake_patterns = [
+            # Balanced email placeholders: <EMAIL_LOCAL_1>@<EMAIL_DOMAIN_1>
+            r"<EMAIL_LOCAL_\d+>@<EMAIL_DOMAIN_\d+>",
+            # Typed GemFilter placeholders: <EMAIL_1>, <SECRET_2>, etc.
+            r"<[A-Z][A-Z0-9_]*_\d+(?:_\d+)?>",
             # Email-ish patterns: t***@domain.com, t***@domain.com_ema
             r"[a-zA-Z0-9][\*]{2,}@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:_[a-zA-Z0-9]+)?",
             # Phone-ish patterns: 138****5678, (***) ***-1234

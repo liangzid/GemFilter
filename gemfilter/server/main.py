@@ -9,7 +9,7 @@ Privacy protection for LLM and AI applications.
 import json
 import argparse
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from urllib.parse import parse_qs
+from urllib.parse import urlparse
 
 from gemfilter import SandFilter, FilterResult
 
@@ -21,12 +21,13 @@ class FilterHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         """Handle GET requests."""
-        if self.path == "/health":
+        parsed = urlparse(self.path)
+        if parsed.path == "/health":
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps({"status": "ok"}).encode())
-        elif self.path == "/rules":
+        elif parsed.path == "/rules":
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
@@ -41,7 +42,8 @@ class FilterHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         """Handle POST requests."""
-        if self.path == "/filter":
+        parsed = urlparse(self.path)
+        if parsed.path == "/filter":
             content_length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(content_length)
 
@@ -55,33 +57,20 @@ class FilterHandler(BaseHTTPRequestHandler):
             if not text:
                 self.send_error(400, "Missing 'text' field")
                 return
+            include_matches = bool(data.get("unsafe_include_matches", False))
 
             # Process the text
             result = self.gemfilter.filter(text)
 
             # Build response
-            response = {
-                "text": result.text,
-                "detections": [
-                    {
-                        "rule": d.rule_name,
-                        "match": d.match,
-                        "start": d.start,
-                        "end": d.end,
-                        "sensitive_type": d.sensitive_type,
-                        "replacement": d.replacement,
-                    }
-                    for d in result.detections
-                ],
-                "summary": result.summary,
-            }
+            response = result.to_dict(include_matches=include_matches)
 
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps(response).encode())
 
-        elif self.path == "/filter/batch":
+        elif parsed.path == "/filter/batch":
             content_length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(content_length)
 
@@ -95,25 +84,12 @@ class FilterHandler(BaseHTTPRequestHandler):
             if not texts:
                 self.send_error(400, "Missing 'texts' field")
                 return
+            include_matches = bool(data.get("unsafe_include_matches", False))
 
             results = []
             for text in texts:
                 result = self.gemfilter.filter(text)
-                results.append({
-                    "text": result.text,
-                    "detections": [
-                        {
-                            "rule": d.rule_name,
-                            "match": d.match,
-                            "start": d.start,
-                            "end": d.end,
-                            "sensitive_type": d.sensitive_type,
-                            "replacement": d.replacement,
-                        }
-                        for d in result.detections
-                    ],
-                    "summary": result.summary,
-                })
+                results.append(result.to_dict(include_matches=include_matches))
 
             self.send_response(200)
             self.send_header("Content-Type", "application/json")

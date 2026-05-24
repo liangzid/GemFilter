@@ -46,6 +46,7 @@ class TestOpenCodeAdapter:
 
         assert "pre_send" in paths
         assert "post_receive" in paths
+        assert "tool_output" in paths
         assert "gemfilter.skill.hooks.pre_send_hook" in paths["pre_send"]
 
     @patch("pathlib.Path.exists")
@@ -65,6 +66,8 @@ class TestOpenCodeAdapter:
             config = json.loads(config_path.read_text())
             assert "plugins" in config
             assert OpenCodeAdapter.PLUGIN_NAME in config["plugins"]
+            hooks = config["plugins"][OpenCodeAdapter.PLUGIN_NAME]["hooks"]
+            assert hooks["tool_output"] == "gemfilter.skill.hooks.tool_output_hook"
 
     @patch("pathlib.Path.exists")
     def test_uninstall_success(self, mock_exists):
@@ -142,6 +145,7 @@ class TestOpenCodePlugin:
         assert manifest["name"] == "gemfilter"
         assert "version" in manifest
         assert "hooks" in manifest
+        assert "tool_output" in manifest["hooks"]
 
     def test_write_manifest(self):
         """Test writing plugin manifest."""

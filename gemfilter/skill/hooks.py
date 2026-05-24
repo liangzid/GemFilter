@@ -55,11 +55,11 @@ class HookManager:
             notifier: UINotifier instance
             skill_config: SkillConfig instance
         """
+        self._config = skill_config or load_skill_config()
         self._session_manager = session_manager or get_session_manager()
-        self._masker = masker or GemMasker()
+        self._masker = masker or GemMasker(masking_mode=self._config.masking_mode.value)
         self._unmasker = unmasker or GemUnmasker()
         self._notifier = notifier or UINotifier()
-        self._config = skill_config or load_skill_config()
         self._lock = threading.RLock()
         self._active_sessions: Dict[str, bool] = {}
 
@@ -133,14 +133,17 @@ class HookManager:
                     )
 
                 # Mask gems
-                masked_text, mapping = self._masker.mask(text)
+                existing_mapping = self._get_session_mapping(session_id)
+                masked_text, mapping = self._masker.mask(
+                    text,
+                    existing_mapping=existing_mapping,
+                )
 
                 # Store mapping in session
                 # mapping is fake -> original
-                reverse_mapping = {v: k for k, v in mapping.items()}  # original -> fake
                 self._session_manager.add_mappings(
                     session_id,
-                    reverse_mapping,  # Store as original -> fake for easy lookup
+                    mapping,
                     gem_type="mixed",
                 )
 
@@ -165,6 +168,86 @@ class HookManager:
 
             except Exception as e:
                 logger.error(f"GemFilter pre_send error: {e}")
+                return HookResult(
+                    success=False,
+                    payload=payload,
+                    error=str(e),
+                )
+
+    def filter_tool_output(
+        self,
+        payload: Any,
+        session_id: Optional[str] = None,
+    ) -> HookResult:
+        """
+        Tool-output hook: Mask gems in local tool results before model ingestion.
+
+        Args:
+            payload: Tool output payload. Strings are filtered directly; dicts and
+                     lists are filtered recursively.
+            session_id: Optional session ID. Creates a new session if not provided.
+
+        Returns:
+            HookResult with filtered tool output.
+        """
+        with self._lock:
+            try:
+                if not self._config.filter_config.filter_tool_outputs:
+                    return HookResult(
+                        success=True,
+                        payload=payload,
+                        gems_detected=0,
+                    )
+
+                if self._should_skip_filtering(payload):
+                    return HookResult(
+                        success=True,
+                        payload=payload,
+                        gems_detected=0,
+                    )
+
+                if session_id is None:
+                    session_id = self._session_manager.create_session()
+                else:
+                    if self._session_manager.get_session(session_id) is None:
+                        self._session_manager.create_session(session_id)
+
+                self._active_sessions[session_id] = True
+
+                filtered_payload, mapping, gem_count = self._filter_tool_value(
+                    payload,
+                    session_id,
+                )
+
+                if gem_count == 0:
+                    return HookResult(
+                        success=True,
+                        payload=payload,
+                        gems_detected=0,
+                    )
+
+                self._session_manager.add_mappings(
+                    session_id,
+                    mapping,
+                    gem_type="mixed",
+                )
+
+                gem_types = self._infer_gem_types_from_mapping(mapping)
+                notification = self._notifier.notify(gem_count, gem_types)
+
+                logger.info(
+                    f"GemFilter tool_output: masked {gem_count} gems in session {session_id}"
+                )
+
+                return HookResult(
+                    success=True,
+                    payload=filtered_payload,
+                    gems_detected=gem_count,
+                    notification=notification,
+                )
+
+            except Exception as e:
+                logger.error(f"GemFilter tool_output error: {e}")
                 return HookResult(
                     success=False,
                     payload=payload,
@@ -295,6 +378,99 @@ class HookManager:
         else:
             return str(payload), False, []
 
+    def _filter_tool_value(
+        self,
+        value: Any,
+        session_id: str,
+    ) -> Tuple[Any, Dict[str, str], int]:
+        """Recursively filter sensitive content from a tool-output value."""
+        if self._should_skip_filtering(value):
+            return value, {}, 0
+
+        if isinstance(value, str):
+            detections = self._masker.get_detections(value)
+            if not detections:
+                return value, {}, 0
+
+            existing_mapping = self._get_session_mapping(session_id)
+            masked_text, mapping = self._masker.mask(
+                value,
+                existing_mapping=existing_mapping,
+            )
+            return masked_text, mapping, len(detections)
+
+        if isinstance(value, dict):
+            filtered: Dict[Any, Any] = {}
+            combined_mapping: Dict[str, str] = {}
+            total_count = 0
+
+            for key, item in value.items():
+                filtered_item, mapping, count = self._filter_tool_value(
+                    item,
+                    session_id,
+                )
+                filtered[key] = filtered_item
+                if mapping:
+                    self._session_manager.add_mappings(
+                        session_id,
+                        mapping,
+                        gem_type="mixed",
+                    )
+                    combined_mapping.update(mapping)
+                total_count += count
+
+            return filtered, combined_mapping, total_count
+
+        if isinstance(value, list):
+            filtered_items = []
+            combined_mapping: Dict[str, str] = {}
+            total_count = 0
+
+            for item in value:
+                filtered_item, mapping, count = self._filter_tool_value(
+                    item,
+                    session_id,
+                )
+                filtered_items.append(filtered_item)
+                if mapping:
+                    self._session_manager.add_mappings(
+                        session_id,
+                        mapping,
+                        gem_type="mixed",
+                    )
+                    combined_mapping.update(mapping)
+                total_count += count
+
+            return filtered_items, combined_mapping, total_count
+
+        return value, {}, 0
+
+    def _should_skip_filtering(self, value: Any) -> bool:
+        """Check whether a payload explicitly opts out of filtering."""
+        return isinstance(value, dict) and value.get("gemfilter_skip") is True
+
+    def _get_session_mapping(self, session_id: str) -> Dict[str, str]:
+        """Return fake -> original mapping for a session."""
+        session = self._session_manager.get_session(session_id)
+        if not session:
+            return {}
+        return {
+            fake: item.original_value
+            for fake, item in session.mappings.items()
+        }
+
+    def _infer_gem_types_from_mapping(self, mapping: Dict[str, str]) -> List[str]:
+        """Best-effort type summary for notification text."""
+        gem_types = set()
+        for fake in mapping:
+            if fake.startswith("<") and "_" in fake:
+                gem_types.add(fake.strip("<>").rsplit("_", 1)[0].lower())
+            elif "@" in fake:
+                gem_types.add("email")
+            else:
+                gem_types.add("secret")
+        return list(gem_types)
+
     def _reconstruct_payload(
         self,
         payload: Any,
@@ -335,6 +511,7 @@ class HookManager:
         adapter.register_hooks(
             pre_send=lambda p: self.pre_send(p),
             post_receive=lambda p: self.post_receive(p),
+            tool_call=lambda p: self.filter_tool_output(p),
         )
 
 
@@ -389,6 +566,16 @@ def post_receive_hook(payload: Any, session_id: Optional[str] = None) -> HookRes
     """
     manager = get_hook_manager()
     return manager.post_receive(payload, session_id)
+
+
+def tool_output_hook(payload: Any, session_id: Optional[str] = None) -> HookResult:
+    """
+    Tool-output hook function.
+
+    Use this before tool results are added to model context.
+    """
+    manager = get_hook_manager()
+    return manager.filter_tool_output(payload, session_id)
 
 
 # Convenience functions
