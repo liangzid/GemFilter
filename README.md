@@ -571,6 +571,7 @@ Project documentation:
 - [Skill README](gemfilter/skill/README.md)
 - [Configuration Guide](docs/CONFIGURATION.md)
 - [Developer Guide](docs/DEVELOPER_GUIDE.md)
+- [Publishing Guide](docs/PUBLISHING.md)
 
 ---
 
