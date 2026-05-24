@@ -273,6 +273,45 @@ curl -X POST http://localhost:8080/filter \
 
 Install GemFilter into the coding-agent project where you want local privacy protection. The installer writes agent-specific hook configuration in the current working directory.
 
+### Copy-paste Agent Setup Prompt
+
+If you are already using a coding agent, you can copy this prompt and send it to the agent from the root of your project:
+
+```text
+Please install and configure GemFilter for this coding-agent project.
+
+Goal:
+- Protect my local privacy before prompts, tool outputs, file contents, shell outputs, or MCP results enter model context.
+- Use GemFilter's local hooks where supported.
+- Do not print or expose any real secrets while configuring or testing.
+
+Steps:
+1. Detect which agent environment this project uses:
+   - Claude Code if .claude/ exists or settings should be written to .claude/settings.json.
+   - OpenCode if .opencode/ exists or config should be written to .opencode/config.json.
+   - Codex/MCP if .codex/ exists or MCP config should be written to .codex/mcp_config.json.
+2. Install GemFilter if needed:
+   pip install gemfilter
+3. Configure the matching adapter:
+   - Claude Code:
+     python -m gemfilter.skill.install --agent claude_code
+   - OpenCode:
+     python -m gemfilter.skill.install --agent opencode
+   - Codex/MCP:
+     python -m gemfilter.skill.install --agent coodex
+4. Verify installation:
+   python -m gemfilter.skill.install --status
+5. Run a safe local smoke test without using real secrets:
+   python -m gemfilter.cli filter "Contact user@example.com and OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz123456"
+6. Report exactly:
+   - which adapter was installed,
+   - which config file changed,
+   - whether status checks passed,
+   - whether the smoke test masked the email and fake API key.
+
+If multiple agent environments are present, ask me which one to configure before making changes.
+```
+
 | Agent | Integration surface | Hook coverage |
 |---|---|---|
 | Claude Code | `settings.json` hooks | pre-send, post-receive, tool-output |
