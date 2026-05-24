@@ -65,19 +65,40 @@ python -m pip install git+https://github.com/yourrepo/gemfilter.git
 cd your-project
 
 # Install the skill (creates hooks in .claude/settings.json)
+pip install gemfilter
 python -m gemfilter.skill.install --agent claude_code
+
+# Verify installation
+python -m gemfilter.skill.install --agent claude_code --status
+
+# Uninstall
+python -m gemfilter.skill.install --agent claude_code --uninstall
 ```
 
 ### Install for OpenCode
 
 ```bash
+cd your-project
+pip install gemfilter
 python -m gemfilter.skill.install --agent opencode
+python -m gemfilter.skill.install --agent opencode --status
+python -m gemfilter.skill.install --agent opencode --uninstall
 ```
 
 ### Install for Codex (MCP)
 
 ```bash
+cd your-project
+pip install gemfilter
 python -m gemfilter.skill.install --agent coodex
+python -m gemfilter.skill.install --agent coodex --status
+python -m gemfilter.skill.install --agent coodex --uninstall
+```
+
+### Check All Agent Installations
+
+```bash
+python -m gemfilter.skill.install --status
 ```
 
 ---

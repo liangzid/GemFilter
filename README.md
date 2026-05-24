@@ -271,7 +271,7 @@ curl -X POST http://localhost:8080/filter \
 
 ## Agent Integrations
 
-GemFilter includes adapter scaffolding for common coding-agent environments:
+Install GemFilter into the coding-agent project where you want local privacy protection. The installer writes agent-specific hook configuration in the current working directory.
 
 | Agent | Integration surface | Hook coverage |
 |---|---|---|
@@ -279,15 +279,106 @@ GemFilter includes adapter scaffolding for common coding-agent environments:
 | OpenCode | plugin hooks | pre-send, post-receive, tool-output |
 | Codex | MCP-style tool/resource schema | filter, restore, tool-output filter |
 
-Install adapter configuration:
+### Claude Code
+
+From the root of your coding project:
 
 ```bash
+pip install gemfilter
 python -m gemfilter.skill.install --agent claude_code
-python -m gemfilter.skill.install --agent opencode
-python -m gemfilter.skill.install --agent coodex
+python -m gemfilter.skill.install --agent claude_code --status
 ```
 
-Note: adapter behavior should still be validated against the exact live hook format of each host agent. The internal GemFilter APIs and tests are stable, but host-agent hook contracts can change.
+This creates or updates:
+
+```text
+.claude/settings.json
+```
+
+Registered hooks:
+
+```text
+onBeforeSend   -> gemfilter.skill.hooks.pre_send_hook
+onAfterReceive -> gemfilter.skill.hooks.post_receive_hook
+onToolOutput   -> gemfilter.skill.hooks.tool_output_hook
+```
+
+Uninstall:
+
+```bash
+python -m gemfilter.skill.install --agent claude_code --uninstall
+```
+
+### OpenCode
+
+From the root of your coding project:
+
+```bash
+pip install gemfilter
+python -m gemfilter.skill.install --agent opencode
+python -m gemfilter.skill.install --agent opencode --status
+```
+
+This creates or updates:
+
+```text
+.opencode/config.json
+```
+
+Registered hooks:
+
+```text
+pre_send     -> gemfilter.skill.hooks.pre_send_hook
+post_receive -> gemfilter.skill.hooks.post_receive_hook
+tool_output  -> gemfilter.skill.hooks.tool_output_hook
+```
+
+Uninstall:
+
+```bash
+python -m gemfilter.skill.install --agent opencode --uninstall
+```
+
+### Codex / MCP
+
+From the root of your coding project:
+
+```bash
+pip install gemfilter
+python -m gemfilter.skill.install --agent coodex
+python -m gemfilter.skill.install --agent coodex --status
+```
+
+This creates or updates:
+
+```text
+.codex/mcp_config.json
+```
+
+Registered resources and tools:
+
+```text
+gemfilter://filter      -> pre-send filtering
+gemfilter://restore     -> response sanitization
+gemfilter://tool-output -> tool-output filtering
+gemfilter_filter_tool_output
+```
+
+Uninstall:
+
+```bash
+python -m gemfilter.skill.install --agent coodex --uninstall
+```
+
+### Check All Agents
+
+```bash
+python -m gemfilter.skill.install --status
+```
+
+Note: the Codex adapter is currently named `coodex` internally for backwards compatibility. The user-facing integration target is Codex/MCP.
+
+Adapter behavior should still be validated against the exact live hook format of each host agent. The internal GemFilter APIs and tests are stable, but host-agent hook contracts can change.
 
 ---
 
