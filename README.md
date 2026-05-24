@@ -1,7 +1,7 @@
 # GemFilter
 
 <p align="center">
-  <img src="https://img.shields.io/badge/GemFilter-0.2.0-6C5CE7?style=for-the-badge" alt="GemFilter 0.2.0">
+  <img src="https://img.shields.io/badge/GemFilter-0.2.1-6C5CE7?style=for-the-badge" alt="GemFilter 0.2.1">
   <img src="https://img.shields.io/badge/privacy-local_first-00B894?style=for-the-badge" alt="Local first privacy">
   <img src="https://img.shields.io/badge/agents-Claude_Code%20%7C%20OpenCode%20%7C%20Codex-0984E3?style=for-the-badge" alt="Agent integrations">
   <img src="https://img.shields.io/badge/runtime-Python_3.11%2B-FDCB6E?style=for-the-badge" alt="Python 3.11+">
