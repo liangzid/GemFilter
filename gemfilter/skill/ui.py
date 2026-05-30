@@ -35,12 +35,8 @@ class UINotifier:
     DEFAULT_DETAILED = """🔒 GemFilter Active
 Protected: {count} gem(s)
 Types: {types}"""
-    DEFAULT_PROMINENT = """\
-╔══════════════════════════════════════════════════╗
-║  ⚠️  GEMFILTER: SENSITIVE INFO PROTECTED        ║
-║  {count} item(s) masked: {types}                ║
-║  Sending filtered content to LLM...             ║
-╚══════════════════════════════════════════════════╝"""
+
+    PROMINENT_WIDTH = 50
 
     # LLM-facing header injected into masked text
     DEFAULT_LLM_HEADER = """\
@@ -135,7 +131,7 @@ Do NOT attempt to reconstruct or infer the original masked values.
         elif self._style == NotificationStyle.DETAILED:
             template = self.DEFAULT_DETAILED
         elif self._style == NotificationStyle.PROMINENT:
-            template = self.DEFAULT_PROMINENT
+            return self._build_prominent_notification(gem_count, types_str)
         else:
             template = self.DEFAULT_BANNER
 
@@ -145,6 +141,29 @@ Do NOT attempt to reconstruct or infer the original masked values.
         )
 
         return message
+
+    def _build_prominent_notification(self, gem_count: int, types_str: str) -> str:
+        """Build a box-drawn prominent notification with proper alignment."""
+        w = self.PROMINENT_WIDTH - 2  # inner width between borders
+        count_str = f"{gem_count} item(s)"
+
+        lines = [
+            "╔" + "═" * (w + 2) + "╗",
+            self._pad_line("⚠️  GEMFILTER: SENSITIVE INFO PROTECTED", w),
+        ]
+        if types_str and types_str != "unknown":
+            detail = f"Masked: {types_str}"
+            if len(detail) > w:
+                detail = detail[:w - 1] + "…"
+            lines.append(self._pad_line(detail, w))
+        lines.append(self._pad_line(f"{count_str} protected in total", w))
+        lines.append("╚" + "═" * (w + 2) + "╝")
+        return "\n".join(lines)
+
+    @staticmethod
+    def _pad_line(text: str, width: int) -> str:
+        """Pad a line with the box border and trailing spaces."""
+        return "║ " + text.ljust(width) + " ║"
 
     def get_llm_header(
         self,

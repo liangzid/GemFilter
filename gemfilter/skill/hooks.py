@@ -513,10 +513,18 @@ class HookManager:
         Args:
             adapter: AgentAdapter instance
         """
+        def _wrap(hook_func):
+            def _wrapped(payload):
+                result = hook_func(payload)
+                if isinstance(result, HookResult) and result.notification:
+                    adapter.display_notification(result.notification, result.gems_detected)
+                return result
+            return _wrapped
+
         adapter.register_hooks(
-            pre_send=lambda p: self.pre_send(p),
-            post_receive=lambda p: self.post_receive(p),
-            tool_call=lambda p: self.filter_tool_output(p),
+            pre_send=_wrap(lambda p: self.pre_send(p)),
+            post_receive=_wrap(lambda p: self.post_receive(p)),
+            tool_call=_wrap(lambda p: self.filter_tool_output(p)),
         )
 
 
@@ -539,6 +547,13 @@ def set_hook_manager(manager: HookManager) -> None:
 
 
 # Standalone hook functions for direct use
+def _notify_user(result: HookResult) -> None:
+    """Print notification to stderr so the user sees it."""
+    if result.notification and result.gems_detected > 0:
+        import sys
+        print(result.notification, file=sys.stderr)
+
+
 def pre_send_hook(payload: Any, session_id: Optional[str] = None) -> HookResult:
     """
     Pre-send hook function.
@@ -553,7 +568,9 @@ def pre_send_hook(payload: Any, session_id: Optional[str] = None) -> HookResult:
         HookResult
     """
     manager = get_hook_manager()
-    return manager.pre_send(payload, session_id)
+    result = manager.pre_send(payload, session_id)
+    _notify_user(result)
+    return result
 
 
 def post_receive_hook(payload: Any, session_id: Optional[str] = None) -> HookResult:
@@ -570,7 +587,9 @@ def post_receive_hook(payload: Any, session_id: Optional[str] = None) -> HookRes
         HookResult
     """
     manager = get_hook_manager()
-    return manager.post_receive(payload, session_id)
+    result = manager.post_receive(payload, session_id)
+    _notify_user(result)
+    return result
 
 
 def tool_output_hook(payload: Any, session_id: Optional[str] = None) -> HookResult:
@@ -580,7 +599,9 @@ def tool_output_hook(payload: Any, session_id: Optional[str] = None) -> HookResu
     Use this before tool results are added to model context.
     """
     manager = get_hook_manager()
-    return manager.filter_tool_output(payload, session_id)
+    result = manager.filter_tool_output(payload, session_id)
+    _notify_user(result)
+    return result
 
 
 # Convenience functions

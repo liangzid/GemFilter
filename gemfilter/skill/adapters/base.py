@@ -149,7 +149,9 @@ class AgentAdapter(ABC):
             Processed payload
         """
         if self._pre_send_handler:
-            return self._pre_send_handler(payload)
+            result = self._pre_send_handler(payload)
+            self._handle_hook_result(result)
+            return result
         return payload
 
     def post_receive(self, payload: Any) -> Any:
@@ -163,7 +165,9 @@ class AgentAdapter(ABC):
             Processed payload
         """
         if self._post_receive_handler:
-            return self._post_receive_handler(payload)
+            result = self._post_receive_handler(payload)
+            self._handle_hook_result(result)
+            return result
         return payload
 
     def tool_call(self, payload: Any) -> Any:
@@ -177,8 +181,16 @@ class AgentAdapter(ABC):
             Processed payload
         """
         if self._tool_handler:
-            return self._tool_handler(payload)
+            result = self._tool_handler(payload)
+            self._handle_hook_result(result)
+            return result
         return payload
+
+    def _handle_hook_result(self, result: Any) -> None:
+        """Extract notification from HookResult and display to user."""
+        from gemfilter.skill.hooks import HookResult
+        if isinstance(result, HookResult) and result.notification:
+            self.display_notification(result.notification, result.gems_detected)
 
     def get_hook_paths(self) -> Dict[str, str]:
         """
