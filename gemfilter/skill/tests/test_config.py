@@ -16,6 +16,7 @@ from gemfilter.skill.config import (
     FilterConfig,
     NotificationStyle,
     MaskStyle,
+    MaskingMode,
     AgentType,
     load_skill_config,
     save_skill_config,
@@ -43,6 +44,16 @@ class TestMaskStyle:
         assert MaskStyle.PARTIAL.value == "partial"
         assert MaskStyle.FULL.value == "full"
         assert MaskStyle.HASH.value == "hash"
+
+
+class TestMaskingMode:
+    """Tests for MaskingMode enum."""
+
+    def test_masking_modes(self):
+        """Test all masking modes exist."""
+        assert MaskingMode.STRICT.value == "strict"
+        assert MaskingMode.BALANCED.value == "balanced"
+        assert MaskingMode.UTILITY.value == "utility"
 
 
 class TestAgentType:
@@ -117,6 +128,7 @@ class TestFilterConfig:
         assert config.config_path is None
         assert config.auto_update is True
         assert config.enabled_types == []
+        assert config.filter_tool_outputs is True
 
     def test_custom_values(self):
         """Test custom filter config."""
@@ -124,11 +136,13 @@ class TestFilterConfig:
             config_path="/path/to/config.yaml",
             auto_update=False,
             enabled_types=["email", "phone"],
+            filter_tool_outputs=False,
         )
 
         assert config.config_path == "/path/to/config.yaml"
         assert config.auto_update is False
         assert "email" in config.enabled_types
+        assert config.filter_tool_outputs is False
 
 
 class TestSkillConfig:
@@ -144,6 +158,7 @@ class TestSkillConfig:
         assert config.activate_on == ["context_build", "api_request", "tool_call"]
         assert config.notification.style == NotificationStyle.BANNER
         assert config.mask_style == MaskStyle.PARTIAL
+        assert config.masking_mode == MaskingMode.BALANCED
         assert config.preserve_format is True
         assert len(config.agents) > 0
 
@@ -159,6 +174,10 @@ class TestSkillConfig:
                 "show_types": False,
             },
             "mask_style": "full",
+            "masking_mode": "strict",
+            "filter": {
+                "filter_tool_outputs": False,
+            },
             "agents": {
                 "claude_code": {
                     "enabled": True,
@@ -177,6 +196,8 @@ class TestSkillConfig:
         assert config.notification.style == NotificationStyle.INLINE
         assert config.notification.show_types is False
         assert config.mask_style == MaskStyle.FULL
+        assert config.masking_mode == MaskingMode.STRICT
+        assert config.filter_config.filter_tool_outputs is False
         assert AgentType.CLAUDE_CODE in config.agents
 
     def test_to_dict(self):
@@ -186,6 +207,7 @@ class TestSkillConfig:
             version="1.0.0",
             auto_activate=True,
             mask_style=MaskStyle.HASH,
+            masking_mode=MaskingMode.UTILITY,
         )
 
         data = config.to_dict()
@@ -194,6 +216,8 @@ class TestSkillConfig:
         assert data["version"] == "1.0.0"
         assert data["auto_activate"] is True
         assert data["mask_style"] == "hash"
+        assert data["masking_mode"] == "utility"
+        assert data["filter"]["filter_tool_outputs"] is True
 
     def test_get_agent_config(self):
         """Test getting agent config."""

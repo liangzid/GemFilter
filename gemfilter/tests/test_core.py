@@ -149,6 +149,72 @@ class TestBuiltInRules:
         # The api_key rule matches first (priority 1)
         assert "[API_KEY]" in result.text
 
+    def test_openai_api_key_detection(self):
+        """Test OpenAI API key detection."""
+        sf = SandFilter()
+        result = sf.filter("OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz123456")
+
+        assert "[OPENAI_API_KEY]" in result.text
+        assert result.detections[0].rule_name == "openai_api_key"
+
+    def test_anthropic_api_key_detection(self):
+        """Test Anthropic API key detection."""
+        sf = SandFilter()
+        result = sf.filter("ANTHROPIC_API_KEY=sk-ant-abcdefghijklmnopqrstuvwxyz123456")
+
+        assert "[ANTHROPIC_API_KEY]" in result.text
+        assert result.detections[0].rule_name == "anthropic_api_key"
+
+    def test_github_token_detection(self):
+        """Test GitHub token detection."""
+        sf = SandFilter()
+        result = sf.filter("GITHUB_TOKEN=ghp_abcdefghijklmnopqrstuvwxyzABCDE12345")
+
+        assert "[GITHUB_TOKEN]" in result.text
+        assert result.detections[0].rule_name == "github_token"
+
+    def test_npm_token_detection(self):
+        """Test npm token detection."""
+        sf = SandFilter()
+        result = sf.filter("NPM_TOKEN=npm_abcdefghijklmnopqrstuvwxyzABCDE12345")
+
+        assert "[NPM_TOKEN]" in result.text
+        assert result.detections[0].rule_name == "npm_token"
+
+    def test_pypi_token_detection(self):
+        """Test PyPI token detection."""
+        sf = SandFilter()
+        result = sf.filter("PYPI_TOKEN=pypi-abcdefghijklmnopqrstuvwxyz123456")
+
+        assert "[PYPI_TOKEN]" in result.text
+        assert result.detections[0].rule_name == "pypi_token"
+
+    def test_jwt_detection(self):
+        """Test JWT detection."""
+        sf = SandFilter()
+        token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjMifQ.signature"
+        result = sf.filter(f"JWT={token}")
+
+        assert "[JWT]" in result.text
+        assert result.detections[0].rule_name == "jwt"
+
+    def test_database_url_detection(self):
+        """Test database URL detection."""
+        sf = SandFilter()
+        url = "postgres://user:pass@db.internal:5432/app"
+        result = sf.filter(f"DATABASE_URL={url}")
+
+        assert "[DATABASE_URL]" in result.text
+        assert result.detections[0].rule_name == "database_url"
+
+    def test_dotenv_secret_detection(self):
+        """Test generic .env-style secret detection."""
+        sf = SandFilter()
+        result = sf.filter("SERVICE_TOKEN=supersecretvalue123")
+
+        assert "[DOTENV_SECRET]" in result.text
+        assert result.detections[0].rule_name == "dotenv_secret"
+
     def test_password_detection(self):
         """Test password detection."""
         sf = SandFilter()
@@ -183,6 +249,26 @@ class TestFilterResult:
 
         assert result.text == ""
         assert len(result.detections) == 0
+
+    def test_result_to_dict_omits_matches_by_default(self):
+        """Serialized results should not expose raw sensitive values."""
+        sf = SandFilter()
+        result = sf.filter("Contact: user@example.com")
+
+        data = result.to_dict()
+
+        assert "user@example.com" not in str(data)
+        assert "match" not in data["detections"][0]
+        assert data["detections"][0]["match_length"] == len("user@example.com")
+
+    def test_result_to_dict_can_include_matches_for_debug(self):
+        """Raw matches require an explicit unsafe debug opt-in."""
+        sf = SandFilter()
+        result = sf.filter("Contact: user@example.com")
+
+        data = result.to_dict(include_matches=True)
+
+        assert data["detections"][0]["match"] == "user@example.com"
 
 
 if __name__ == "__main__":

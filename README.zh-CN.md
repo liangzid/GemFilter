@@ -1,133 +1,191 @@
 # GemFilter
 
-**隐私保护过滤器** — 像从沙子里筛选宝石一样，GemFilter 保护您的敏感信息不被泄露到 LLM 和 AI 服务。
+<p align="center">
+  <img src="https://img.shields.io/badge/GemFilter-0.2.2-6C5CE7?style=for-the-badge" alt="GemFilter 0.2.2">
+  <img src="https://img.shields.io/badge/privacy-local_first-00B894?style=for-the-badge" alt="Local first privacy">
+  <img src="https://img.shields.io/badge/agents-Claude_Code%20%7C%20OpenCode%20%7C%20Codex-0984E3?style=for-the-badge" alt="Agent integrations">
+  <img src="https://img.shields.io/badge/runtime-Python_3.11%2B-FDCB6E?style=for-the-badge" alt="Python 3.11+">
+</p>
+
+<p align="center">
+  <strong>面向 coding agent 的本地隐私防火墙。</strong><br>
+  GemFilter 在敏感开发者数据进入 LLM、工具结果、日志或 agent 上下文前，对其进行检测、遮蔽、追踪和净化。
+</p>
+
+<p align="center">
+  <a href="README.md">English</a> ·
+  <a href="#复制给-agent-的安装提示词">复制给 Agent 的安装提示词</a> ·
+  <a href="#隐私边界模型">隐私边界模型</a> ·
+  <a href="#遮蔽模式">遮蔽模式</a> ·
+  <a href="#agent-集成">Agent 集成</a>
+</p>
 
 ---
 
-## 🎯 GemFilter Skill（AI Agent 集成）
+## 复制给 Agent 的安装提示词
 
-GemFilter 作为**技能（Skill）**直接集成到 AI 编码代理中，提供自动隐私保护：
+如果你已经在使用 coding agent，可以把下面这段 prompt 复制给 agent，并在你希望启用 GemFilter 的项目根目录中运行：
 
-- **发送前过滤**：在敏感信息离开您的设备前自动遮蔽
-- **接收后恢复**：确保敏感信息不会在响应中暴露
-- **视觉反馈**：部分遮蔽的内容与用户通知
-- **会话跟踪**：映射在多轮对话中保持
+```text
+请为这个 coding-agent 项目安装并配置 GemFilter。
 
-### Claude Code 快速开始
+目标：
+- 从 https://github.com/liangzid/GemFilter 克隆或查看 GemFilter 项目。
+- 使用 pip 安装 GemFilter。
+- 在修改我的 agent 配置前，先阅读相关安装和配置文档。
+- 根据当前项目使用的 coding agent 配置 GemFilter。
+- 只使用 fake secret 运行安全的 smoke test。
+- 不要打印、复制、总结或暴露我机器上的任何真实 secret。
 
-```bash
-# 安装技能
-python -m gemfilter.skill.install --agent claude_code
+步骤：
+1. 如果本地没有 GemFilter repo，先临时克隆：
+   git clone https://github.com/liangzid/GemFilter.git
+2. 阅读 GemFilter repo 中的这些文件：
+   - README.md
+   - gemfilter/skill/README.md
+   - docs/CONFIGURATION.md
+3. 安装前先问我希望使用哪个隐私级别：
+   - strict：最高隐私，使用 <EMAIL_1> 这类 typed placeholder。
+   - balanced：默认选项，保留有用语法结构但隐藏真实值，例如 <EMAIL_LOCAL_1>@<EMAIL_DOMAIN_1>。
+   - utility：更偏任务可用性，使用看起来真实但为假的值，例如 user1@example.test。
+   如果我没有回答，使用 balanced。
+4. 安装 GemFilter：
+   pip install gemfilter
+5. 检测当前项目的 coding-agent 环境：
+   - Claude Code: .claude/ 或 .claude/settings.json
+   - OpenCode: ~/.config/opencode/opencode.json 或 .opencode/
+   - Codex/MCP: .codex/ 或 MCP 配置
+6. 按照文档配置匹配的集成方式。
+7. 在使用 GemFilter 配置文件的地方，把我选择的隐私级别写入 masking_mode: strict、balanced 或 utility。
+8. 只用 fake 值运行本地 smoke test：
+   python -m gemfilter.cli filter "Contact user@example.com and OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz123456"
+9. 如果配置 OpenCode，运行一次非交互 opencode 对照测试：
+   - GemFilter 启用
+   - GEMFILTER_OPENCODE_DISABLED=1
+10. 汇报：
+   - 配置了哪个 agent 集成，
+   - 选择了哪个隐私级别，
+   - 修改了哪些配置文件，
+   - 如何禁用或卸载，
+   - smoke test 是否证明 fake email/API key 被过滤。
+
+如果检测到多个 agent 环境，请先问我应该配置哪一个，再修改配置。
 ```
-
-现在您的提示词将自动受到保护：
-
-```
-您: 发送邮件到 john@example.com，API密钥是 sk-abc123...
-GemFilter: 🔒 GemFilter: 2 个宝石已保护
-
-AI 响应: 我看到您想发送一封邮件...
-```
-
-### 支持的代理
-
-| 代理 | 集成方式 | 状态 |
-|------|----------|------|
-| Claude Code | settings.json hooks | ✅ 稳定 |
-| OpenCode | 插件系统 | ✅ 稳定 |
-| Codex | MCP 协议 | ✅ 稳定 |
-
-### 工作原理
-
-```
-用户输入: "邮箱: john@example.com, 密钥: sk-abc123..."
-                    ↓
-         ┌─────────────────────┐
-         │   发送前钩子       │
-         │   (GemMasker)      │
-         └─────────────────────┘
-                    ↓
-遮蔽后:   "邮箱: j***@example.com_ema, 密钥: sk-***123_ema"
-                    ↓
-              ┌─────────┐
-              │ LLM API │
-              └─────────┘
-                    ↓
-LLM 响应: "我看到您的邮箱是 j***@example.com_ema..."
-                    ↓
-         ┌─────────────────────┐
-         │   接收后钩子       │
-         │   (GemUnmasker)    │
-         └─────────────────────┘
-                    ↓
-净化后: "我看到您的邮箱是 [FILTERED]..."
-```
-
-详细文档：
-- [技能 README](gemfilter/skill/README.md)
-- [配置指南](docs/CONFIGURATION.md)
-- [开发者指南](docs/DEVELOPER_GUIDE.md)
 
 ---
 
-## 🌟 宝石隐喻
+## 项目概览
 
-想象您的数据是沙子和宝石的混合物。敏感信息——如密码、API密钥、邮箱、个人数据——就是**珍贵的宝石**。正如您会从沙子中筛选出宝石以保护它们一样，**GemFilter** 自动检测和保护这些敏感信息，防止它们泄露到 LLM 或 AI 系统中。
+GemFilter 最初是一个敏感信息过滤器。到 v0.2，它的定位更接近 **AI coding agent 的本地隐私边界**。
 
-## ✨ 为什么选择 GemFilter？
+Coding agent 不只是读取用户 prompt。它们会查看仓库、读取文件、执行 shell 命令、接收 MCP 工具结果、保存 transcript，并在模型响应中复述上下文。敏感信息可能从多个边界泄露：
 
-在使用 LLM API 或 AI Agent 时，敏感信息可能会意外发送到外部服务，造成隐私风险。GemFilter 作为**隐私护盾**，自动检测和保护：
+| 边界 | 风险示例 | GemFilter 保护 |
+|---|---|---|
+| 用户 prompt | 用户把 API key 粘贴进请求 | 发送前过滤 |
+| 工具输出 | shell 输出包含 `.env` 值 | tool-output 过滤 |
+| 仓库上下文 | 配置文件包含内部 endpoint | 递归 payload 过滤 |
+| 模型响应 | LLM 复述 surrogate 或生成新 secret | 接收后净化 |
+| CLI / HTTP 输出 | 过滤器自己返回 raw match | 默认安全序列化 |
 
-| 🔒 保护的宝石 | 📝 使用场景 |
-|-------------|-----------|
-| 🔑 **凭证信息** | 密码、API密钥、令牌 |
-| 📧 **联系方式** | 邮箱、电话号码 |
-| 💳 **财务数据** | 信用卡、银行账户 |
-| 🆔 **个人身份信息** | 身份证号、护照信息 |
-| 🌐 **网络信息** | IP 地址、URL、MAC 地址 |
-
-### 支持的宝石类型
-
-| 类型 | 示例 | 遮蔽后 |
-|------|------|--------|
-| 邮箱 | `john@example.com` | `j***@example.com` |
-| 电话 (中国) | `13812345678` | `138****5678` |
-| 电话 (美国) | `(123) 456-7890` | `(***) ***-7890` |
-| API 密钥 | `sk-abc123xyz...` | `sk-***xyz` |
-| AWS 密钥 | `AKIAIOSFODNN7...` | `AKIA***...7` |
-| 密码 | `password=secret` | `[PASSWORD]` |
-| 信用卡 | `4111-1111-1111-1111` | `4111 **** **** 1111` |
-| 身份证 | `110101199001011234` | `1***********4` |
-| 私钥 | `-----BEGIN RSA...` | `[PRIVATE_KEY]` |
-| IPv4 | `192.168.1.100` | `192.168.***.***` |
-| URL | `https://api.example.com` | `https://***.example.com` |
+GemFilter 是本地、规则驱动、独立于 LLM 的工具，目标是可理解、可审计、易集成。
 
 ---
 
-## 🚀 功能特性
+## 保护哪些内容
 
-- **隐私保护**: 自动检测和保护敏感信息
-- **多种处理器**: 替换、部分遮蔽、删除、哈希、加密
-- **可扩展**: 使用正则表达式添加自定义检测规则
-- **可配置**: 支持 YAML/JSON 配置文件
-- **双语言SDK**: Python 和 TypeScript 支持
-- **HTTP 服务器**: 提供 REST API 服务
-- **命令行工具**: 便捷的命令行界面
-- **零依赖LLM**: 纯规则引擎，无需调用大模型
+| 类别 | 示例 |
+|---|---|
+| 凭证 | API key、密码、Bearer token、JWT |
+| Provider token | OpenAI、Anthropic、GitHub、npm、PyPI |
+| 云凭证 | AWS access key、AWS secret access key |
+| 本地配置 | `.env` secret、database URL |
+| 联系方式 | 邮箱、中国/美国电话号码 |
+| 个人标识 | 中国身份证、护照、信用卡 |
+| 网络信息 | URL、IPv4、IPv6、MAC 地址 |
+
+默认输出是安全的：序列化检测结果默认不包含原始敏感 match，除非显式开启 unsafe debug flag。
 
 ---
 
-## 📦 安装
+## 隐私边界模型
+
+```text
+用户 prompt / 上下文
+        |
+        v
+  pre_send hook
+        |
+        v
+遮蔽后的上下文 -----------------------> LLM / agent
+        |                                  |
+        |                                  v
+        |                              模型响应
+        |                                  |
+        v                                  v
+工具输出 / MCP 结果 -----------> post_receive sanitizer
+        |
+        v
+filter_tool_output hook
+```
+
+同一个本地 session 会在这些路径中复用 surrogate，因此 pre-send 里生成的 surrogate 可以在后续 tool output 中复用。
+
+---
+
+## 遮蔽模式
+
+不同 coding 任务需要不同的隐私/可用性权衡。
+
+| 模式 | 示例 | 适合场景 |
+|---|---|---|
+| `strict` | `john@example.com` -> `<EMAIL_1>` | 最大隐私 |
+| `balanced` | `john@example.com` -> `<EMAIL_LOCAL_1>@<EMAIL_DOMAIN_1>` | 默认 coding-agent 使用 |
+| `utility` | `john@example.com` -> `user1@example.test` | 需要假数据格式有效的测试/示例 |
+
+API key、密码、私钥、Bearer token、database URL 等高风险 secret 即使在 utility 场景下也会保留为 typed placeholder。
+
+---
+
+## 快速开始
+
+### 安装
 
 ```bash
 pip install gemfilter
-# 或
-uv pip install gemfilter
 ```
 
----
+本地开发：
 
-## ⚡ 快速开始
+```bash
+git clone https://github.com/liangzid/GemFilter.git
+cd GemFilter
+pip install -e .
+```
+
+### CLI
+
+```bash
+gemfilter filter "Contact user@example.com and OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz123456"
+```
+
+输出：
+
+```text
+Contact [EMAIL] and OPENAI_API_KEY=[OPENAI_API_KEY]
+```
+
+JSON 输出默认不包含 raw match：
+
+```bash
+gemfilter filter "Contact user@example.com" --json
+```
+
+如需本地调试 raw match，必须显式使用：
+
+```bash
+gemfilter filter "Contact user@example.com" --json --unsafe-include-matches
+```
 
 ### Python SDK
 
@@ -136,181 +194,257 @@ from gemfilter import SandFilter
 
 sf = SandFilter()
 result = sf.filter("我的邮箱是 test@example.com，手机 13800138000")
+
 print(result.text)
-# 输出: 我的邮箱是 [EMAIL]，手机 [PHONE_CN]
+# 我的邮箱是 [EMAIL]，手机 [PHONE_CN]
 ```
 
-### Python Skill API
+### Agent Hook API
 
 ```python
 from gemfilter.skill import HookManager
 
 manager = HookManager()
-result = manager.pre_send("发送到: john@example.com")
-print(result.payload)  # "发送到: j***@example.com"
-print(result.notification)  # "🔒 GemFilter: 1 个宝石已保护"
+
+pre = manager.pre_send(
+    "Send the report to john@example.com. The token is sk-proj-abcdefghijklmnopqrstuvwxyz123456.",
+    session_id="demo",
+)
+
+print(pre.payload)
+# Send the report to <EMAIL_LOCAL_1>@<EMAIL_DOMAIN_1>. The token is <OPENAI_KEY_1>.
+
+tool = manager.filter_tool_output(
+    {
+        "tool": "shell",
+        "stdout": "DATABASE_URL=postgres://user:pass@db.internal:5432/app",
+        "exit_code": 0,
+    },
+    session_id="demo",
+)
+
+print(tool.payload["stdout"])
+# DATABASE_URL=<DATABASE_URL_1>
 ```
 
 ---
 
-## 📚 Python SDK
+## 接口
 
-### 基础用法
+| 接口 | 命令 / API | 用途 |
+|---|---|---|
+| Python SDK | `SandFilter` | 库内过滤 |
+| Skill API | `HookManager` | agent pre-send、tool-output、post-receive hook |
+| CLI | `gemfilter filter` | shell 工作流和脚本 |
+| HTTP server | `gemfilter-server` | 本地 REST 过滤 |
+| MCP / Codex schema | `gemfilter_filter_tool_output` | agent tool result 过滤 |
 
-```python
-from gemfilter import SandFilter, Processors, DetectionRule
+### HTTP Server
 
-# 默认: 替换为 [规则名]
-sf = SandFilter()
-result = sf.filter("邮箱: user@example.com")
-print(result.text)  # 邮箱: [EMAIL]
-
-# 使用自定义处理器
-sf.set_processor("email", Processors.partial_mask())
-result = sf.filter("邮箱: user@example.com")
-print(result.text)  # 邮箱: u***@*******.com
-
-# 添加自定义规则
-rule = DetectionRule(
-    name="student_id",
-    pattern=r"STU\d{8}",
-    priority=1,
-)
-sf.add_rule(rule)
-result = sf.filter("学生ID: STU20240001")
-print(result.text)  # 学生ID: [STUDENT_ID]
-
-# 获取检测详情
-result = sf.filter("邮箱: test@example.com")
-print(result.detections)  # [Detection(...)]
-print(result.summary)      # {'email': 1}
+```bash
+gemfilter-server --host localhost --port 8080
 ```
 
-### 配置文件
+| Method | Endpoint | 描述 |
+|---|---|---|
+| `GET` | `/health` | 健康检查 |
+| `GET` | `/rules` | 规则列表 |
+| `POST` | `/filter` | 过滤单条文本 |
+| `POST` | `/filter/batch` | 批量过滤文本 |
 
-创建 `config.yaml`:
+---
+
+## Agent 集成
+
+### Claude Code
+
+在 coding 项目根目录运行：
+
+```bash
+pip install gemfilter
+python -m gemfilter.skill.install --agent claude_code
+python -m gemfilter.skill.install --agent claude_code --status
+```
+
+会创建或更新：
+
+```text
+.claude/settings.json
+```
+
+卸载：
+
+```bash
+python -m gemfilter.skill.install --agent claude_code --uninstall
+```
+
+### OpenCode
+
+OpenCode 1.14+ 使用真实的 JavaScript plugin API。推荐方式是在 `experimental.chat.messages.transform` 中过滤 text part，让内容进入模型上下文前先经过 GemFilter。
+
+创建 `~/.config/opencode/gemfilter-plugin.mjs`：
+
+```js
+import { spawnSync } from "node:child_process";
+
+const PYTHON = process.env.GEMFILTER_PYTHON || "python3";
+const DISABLED = process.env.GEMFILTER_OPENCODE_DISABLED === "1";
+
+function filterText(text) {
+  if (DISABLED || typeof text !== "string" || text.length === 0) return text;
+  const result = spawnSync(PYTHON, ["-m", "gemfilter.cli", "filter"], {
+    input: text,
+    encoding: "utf8",
+    maxBuffer: 10 * 1024 * 1024,
+  });
+  if (result.status !== 0 || result.error) return text;
+  return result.stdout.endsWith("\n") ? result.stdout.slice(0, -1) : result.stdout;
+}
+
+export default async function GemFilterPlugin() {
+  return {
+    "experimental.chat.messages.transform": async (_input, output) => {
+      for (const message of output.messages ?? []) {
+        for (const part of message.parts ?? []) {
+          if (part?.type === "text" && typeof part.text === "string") {
+            part.text = filterText(part.text);
+          }
+        }
+      }
+    },
+  };
+}
+```
+
+然后把插件路径加入 `~/.config/opencode/opencode.json`：
+
+```json
+{
+  "plugin": ["/home/YOUR_USER/.config/opencode/gemfilter-plugin.mjs"]
+}
+```
+
+用 fake secret 做真实非交互测试：
+
+```bash
+opencode run --format json \
+  "Repeat exactly this one line and nothing else: Contact user@example.com and OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz123456"
+```
+
+期望模型返回：
+
+```text
+Contact [EMAIL] and OPENAI_API_KEY=[OPENAI_API_KEY]
+```
+
+临时禁用：
+
+```bash
+GEMFILTER_OPENCODE_DISABLED=1 opencode
+```
+
+### Codex / MCP
+
+```bash
+pip install gemfilter
+python -m gemfilter.skill.install --agent coodex
+python -m gemfilter.skill.install --agent coodex --status
+```
+
+会创建或更新：
+
+```text
+.codex/mcp_config.json
+```
+
+注意：Codex adapter 目前内部名称仍为 `coodex`，这是为了兼容旧实现；用户面向的是 Codex/MCP 集成。
+
+---
+
+## 配置
+
+GemFilter 按以下顺序查找 skill 配置：
+
+1. `GEMFILTER_SKILL_CONFIG`
+2. `./config/skill.yaml`
+3. `./gemfilter/skill/config.yaml`
+4. `~/.gemfilter/skill.yaml`
+
+示例：
 
 ```yaml
-settings:
-  default_processor: rule_name
+name: "gemfilter"
+version: "1.0.0"
+auto_activate: true
 
-rules:
-  - name: email
-    enabled: false
+notification:
+  style: "banner"
+  show_types: true
+  show_count: true
 
-  - name: phone_cn
-    processor: partial_mask
-    processor_config:
-      preserve_prefix: 3
-      preserve_suffix: 4
+masking_mode: "balanced"  # strict | balanced | utility
+preserve_format: true
+
+filter:
+  config_path: null
+  auto_update: true
+  enabled_types: []
+  filter_tool_outputs: true
 ```
 
-加载配置:
+如果某些 public/example 字符串必须原样进入模型上下文，可以关闭 tool-output filtering：
+
+```yaml
+filter:
+  filter_tool_outputs: false
+```
+
+或者让单个 structured payload 跳过过滤：
 
 ```python
-sf = SandFilter.from_config("config.yaml")
+manager.filter_tool_output({
+    "gemfilter_skip": True,
+    "stdout": "public example value that must stay exact",
+})
 ```
 
 ---
 
-## 💻 命令行工具
-
-```bash
-# 过滤文本
-gemfilter filter "邮箱 test@example.com"
-
-# 从文件过滤
-gemfilter filter -i input.txt
-
-# 详细输出
-gemfilter filter "手机 13800138000" -v
-
-# 列出所有规则
-gemfilter rules
-
-# 禁用指定规则
-gemfilter filter "test" --disable email phone_cn
-```
-
----
-
-## 🌐 HTTP 服务器
-
-```bash
-# 启动服务
-python -m gemfilter.server.main --port 8080
-
-# 或使用配置
-python -m gemfilter.server.main --port 8080 --config config.yaml
-```
-
-### API 端点
-
-| 方法 | 端点 | 描述 |
-|------|------|------|
-| GET | `/health` | 健康检查 |
-| GET | `/rules` | 列出规则 |
-| POST | `/filter` | 过滤单个文本 |
-| POST | `/filter/batch` | 批量过滤 |
-
----
-
-## 📋 内置规则
+## 内置规则
 
 | 规则 | 描述 |
-|------|------|
-| email | 邮箱地址 |
-| phone_cn | 中国手机号 |
-| phone_us | 美国电话 |
-| id_card_cn | 身份证号 |
-| passport | 护照号码 |
-| credit_card | 信用卡号 |
-| password | 密码 |
-| api_key | API 密钥 |
-| api_key_generic | 通用 API Key |
-| bearer_token | JWT 令牌 |
-| aws_access_key | AWS 访问密钥 |
-| ipv4 | IPv4 地址 |
-| ipv6 | IPv6 地址 |
-| mac_address | MAC 地址 |
-| url | URL 链接 |
+|---|---|
+| `email` | 邮箱地址 |
+| `phone_cn`, `phone_us` | 中国/美国电话号码 |
+| `id_card_cn`, `passport` | 个人标识 |
+| `credit_card`, `bank_account_cn` | 金融标识 |
+| `password`, `dotenv_secret` | 密码和 `.env` secret |
+| `api_key`, `api_key_generic` | API key 和通用 `sk-...` key |
+| `openai_api_key`, `anthropic_api_key` | LLM provider API key |
+| `github_token`, `npm_token`, `pypi_token` | 开发平台 token |
+| `bearer_token`, `jwt` | Bearer token 和 JWT |
+| `aws_access_key`, `aws_secret_key` | AWS 凭证 |
+| `private_key` | 私钥头 |
+| `database_url` | PostgreSQL、MySQL、MongoDB、Redis URL |
+| `ipv4`, `ipv6`, `mac_address`, `url` | 网络标识 |
 
 ---
 
-## 🔧 处理器类型
+## 开发
 
-- `ReplaceProcessor` - 替换为自定义文本
-- `RuleNameReplaceProcessor` - 替换为 [规则名]
-- `PartialMaskProcessor` - 部分遮蔽 (如 u***@***.com)
-- `DeleteProcessor` - 完全删除
-- `HashProcessor` - SHA256 哈希
-
----
-
-## 💡 使用场景
-
-### 保护 LLM 提示
-
-```python
-# 发送敏感数据到 LLM 前进行过滤
-user_input = "我的邮箱是 test@example.com，请帮我分析这份文档"
-filtered = sf.filter(user_input)
-# 将 filtered.text 发送给 LLM - 敏感信息已被保护
+```bash
+python -m pytest -q
 ```
 
-### API 网关中间件
+更多文档：
 
-```python
-# 作为 API 请求的中间件
-@app.post("/chat")
-async def chat(request: Request):
-    body = await request.body()
-    filtered = sf.filter(body)
-    # 继续处理过滤后的内容
-```
+- [Skill README](gemfilter/skill/README.md)
+- [配置指南](docs/CONFIGURATION.md)
+- [开发者指南](docs/DEVELOPER_GUIDE.md)
+- [发布指南](docs/PUBLISHING.md)
 
 ---
 
-## 📄 许可证
+## License
 
-MIT — Made with 💎 by [liangzid](https://github.com/liangzid)
+MIT.

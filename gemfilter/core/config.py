@@ -181,7 +181,15 @@ groups:
   security:
     - password
     - api_key
+    - openai_api_key
+    - anthropic_api_key
+    - github_token
+    - npm_token
+    - pypi_token
+    - jwt
     - api_key_generic
+    - database_url
+    - dotenv_secret
 """
 
 DEFAULT_CONFIG = {

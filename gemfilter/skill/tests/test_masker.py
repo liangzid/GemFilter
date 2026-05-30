@@ -142,7 +142,7 @@ class TestGemMasker:
         masked_text, mapping = masker.mask(text)
 
         assert "-----BEGIN RSA PRIVATE KEY-----" not in masked_text
-        assert "[PRIVATE_KEY]" in masked_text
+        assert "<PRIVATE_KEY_" in masked_text
 
     def test_get_detections(self):
         """Test getting detections without masking."""
@@ -290,3 +290,77 @@ class TestMaskerCustomMaskers:
 
         # Check that our custom masker was used
         assert "@example.com" in masked_text
+
+
+class TestMaskingModes:
+    """Tests for strict, balanced, and utility masking modes."""
+
+    def test_strict_mode_uses_typed_placeholder(self):
+        masker = GemMasker(masking_mode="strict")
+
+        masked_text, mapping = masker.mask("Email: user@example.com")
+
+        assert masked_text == "Email: <EMAIL_1>"
+        assert mapping == {"<EMAIL_1>": "user@example.com"}
+
+    def test_balanced_mode_preserves_email_syntax_without_domain(self):
+        masker = GemMasker(masking_mode="balanced")
+
+        masked_text, mapping = masker.mask("Email: user@example.com")
+
+        assert masked_text == "Email: <EMAIL_LOCAL_1>@<EMAIL_DOMAIN_1>"
+        assert "example.com" not in masked_text
+        assert mapping == {
+            "<EMAIL_LOCAL_1>@<EMAIL_DOMAIN_1>": "user@example.com",
+        }
+
+    def test_utility_mode_uses_format_preserving_fake(self):
+        masker = GemMasker(masking_mode="utility")
+
+        masked_text, mapping = masker.mask("Email: user@example.com")
+
+        assert masked_text == "Email: user1@example.test"
+        assert mapping == {"user1@example.test": "user@example.com"}
+
+    def test_existing_mapping_is_reused(self):
+        masker = GemMasker(masking_mode="strict")
+
+        masked_text, mapping = masker.mask(
+            "Again: user@example.com",
+            existing_mapping={"<EMAIL_7>": "user@example.com"},
+        )
+
+        assert masked_text == "Again: <EMAIL_7>"
+        assert mapping == {"<EMAIL_7>": "user@example.com"}
+
+    def test_balanced_url_masks_host_query_and_path_structure(self):
+        masker = GemMasker(masking_mode="balanced")
+
+        masked_text, mapping = masker.mask("Visit https://api.internal.test:8443/v1/users?id=123")
+
+        assert "api.internal.test" not in masked_text
+        assert "id=123" not in masked_text
+        assert "https://<HOST_1>:8443/<PATH_1_1>/<PATH_1_2>?<QUERY>" in masked_text
+        assert len(mapping) == 1
+
+    def test_balanced_openai_key_uses_typed_secret(self):
+        masker = GemMasker(masking_mode="balanced")
+
+        masked_text, mapping = masker.mask(
+            "OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz123456"
+        )
+
+        assert "sk-proj-" not in masked_text
+        assert "<OPENAI_KEY_1>" in masked_text
+        assert list(mapping.keys()) == ["<OPENAI_KEY_1>"]
+
+    def test_balanced_database_url_uses_typed_secret(self):
+        masker = GemMasker(masking_mode="balanced")
+
+        masked_text, mapping = masker.mask(
+            "DATABASE_URL=postgres://user:pass@db.internal:5432/app"
+        )
+
+        assert "db.internal" not in masked_text
+        assert "<DATABASE_URL_1>" in masked_text
+        assert list(mapping.keys()) == ["<DATABASE_URL_1>"]

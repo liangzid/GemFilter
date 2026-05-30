@@ -21,6 +21,23 @@ class Detection:
     sensitive_type: str
     replacement: str
 
+    def to_dict(self, include_match: bool = False) -> dict:
+        """Serialize detection metadata.
+
+        Raw matches contain the sensitive value and are omitted by default.
+        """
+        data = {
+            "rule": self.rule_name,
+            "start": self.start,
+            "end": self.end,
+            "sensitive_type": self.sensitive_type,
+            "replacement": self.replacement,
+            "match_length": len(self.match),
+        }
+        if include_match:
+            data["match"] = self.match
+        return data
+
 
 @dataclass
 class FilterResult:
@@ -34,6 +51,17 @@ class FilterResult:
             # Build summary from detections
             for d in self.detections:
                 self.summary[d.rule_name] = self.summary.get(d.rule_name, 0) + 1
+
+    def to_dict(self, include_matches: bool = False) -> dict:
+        """Serialize the result without raw sensitive matches by default."""
+        return {
+            "text": self.text,
+            "detections": [
+                d.to_dict(include_match=include_matches)
+                for d in self.detections
+            ],
+            "summary": self.summary,
+        }
 
 
 class FilterPipeline:

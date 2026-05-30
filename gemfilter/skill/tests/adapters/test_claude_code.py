@@ -45,6 +45,7 @@ class TestClaudeCodeAdapter:
 
         assert "onBeforeSend" in paths
         assert "onAfterReceive" in paths
+        assert "onToolOutput" in paths
         assert "gemfilter.skill.hooks.pre_send_hook" in paths["onBeforeSend"]
 
     @patch("pathlib.Path.exists")
@@ -90,6 +91,7 @@ class TestClaudeCodeAdapter:
             settings = json.loads(settings_path.read_text())
             assert "hooks" in settings
             assert "onBeforeSend" in settings["hooks"]
+            assert settings["hooks"]["onToolOutput"] == "gemfilter.skill.hooks.tool_output_hook"
 
     @patch("pathlib.Path.exists")
     def test_uninstall_success(self, mock_exists):
@@ -102,6 +104,7 @@ class TestClaudeCodeAdapter:
                 "hooks": {
                     "onBeforeSend": "gemfilter.skill.hooks.pre_send_hook",
                     "onAfterReceive": "gemfilter.skill.hooks.post_receive_hook",
+                    "onToolOutput": "gemfilter.skill.hooks.tool_output_hook",
                 }
             }))
 
@@ -147,6 +150,7 @@ class TestClaudeCodeAdapter:
                 "hooks": {
                     "onBeforeSend": "gemfilter.skill.hooks.pre_send_hook",
                     "onAfterReceive": "gemfilter.skill.hooks.post_receive_hook",
+                    "onToolOutput": "gemfilter.skill.hooks.tool_output_hook",
                 }
             }))
 
@@ -163,6 +167,7 @@ class TestClaudeCodeAdapter:
                 "hooks": {
                     "onBeforeSend": "gemfilter.skill.hooks.pre_send_hook",
                     "onAfterReceive": "gemfilter.skill.hooks.post_receive_hook",
+                    "onToolOutput": "gemfilter.skill.hooks.tool_output_hook",
                 }
             }))
 
@@ -179,6 +184,7 @@ class TestClaudeCodeAdapter:
                 "hooks": {
                     "onBeforeSend": "gemfilter.skill.hooks.pre_send_hook",
                     "onAfterReceive": "gemfilter.skill.hooks.post_receive_hook",
+                    "onToolOutput": "gemfilter.skill.hooks.tool_output_hook",
                 }
             }))
 
@@ -190,6 +196,7 @@ class TestClaudeCodeAdapter:
             # Verify hooks are set to None
             settings = json.loads(settings_path.read_text())
             assert settings["hooks"]["onBeforeSend"] is None
+            assert settings["hooks"]["onToolOutput"] is None
 
 
 class TestClaudeCodeSettings:

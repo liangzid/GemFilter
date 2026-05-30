@@ -91,6 +91,11 @@ class CodexAdapter(AgentAdapter):
                 "handler": "gemfilter.skill.hooks.post_receive_hook",
             }
 
+            config["resources"]["gemfilter://tool-output"] = {
+                "type": "tool_output_filter",
+                "handler": "gemfilter.skill.hooks.tool_output_hook",
+            }
+
             self._save_config(config)
             logger.info("Codex adapter installed successfully")
             return True
@@ -115,6 +120,7 @@ class CodexAdapter(AgentAdapter):
                 config.get("tools", {}).pop("gemfilter", None)
                 config.get("resources", {}).pop("gemfilter://filter", None)
                 config.get("resources", {}).pop("gemfilter://restore", None)
+                config.get("resources", {}).pop("gemfilter://tool-output", None)
                 self._save_config(config)
 
             logger.info("Codex adapter uninstalled successfully")
@@ -173,6 +179,7 @@ class CodexAdapter(AgentAdapter):
         return {
             "filter": "gemfilter.skill.hooks.pre_send_hook",
             "restore": "gemfilter.skill.hooks.post_receive_hook",
+            "tool_output": "gemfilter.skill.hooks.tool_output_hook",
         }
 
     def validate_installation(self) -> bool:
@@ -286,6 +293,40 @@ class MCPTool:
         },
     }
 
+    TOOL_OUTPUT_DEFINITION = {
+        "name": "gemfilter_filter_tool_output",
+        "description": "Filter sensitive information from local tool output before adding it to model context",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "payload": {
+                    "description": "Tool output payload to filter. Strings, objects, and arrays are supported.",
+                },
+                "session_id": {
+                    "type": "string",
+                    "description": "Optional session ID for tracking",
+                },
+            },
+            "required": ["payload"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "filtered_payload": {
+                    "description": "Tool output with gems filtered",
+                },
+                "gem_count": {
+                    "type": "number",
+                    "description": "Number of gems found",
+                },
+                "notification": {
+                    "type": "string",
+                    "description": "User notification message",
+                },
+            },
+        },
+    }
+
     @classmethod
     def get_filter_tool(cls) -> Dict:
         """Get the filter tool definition."""
@@ -297,6 +338,15 @@ class MCPTool:
         return cls.RESTORE_TOOL_DEFINITION.copy()
 
     @classmethod
+    def get_tool_output_filter(cls) -> Dict:
+        """Get the tool-output filter definition."""
+        return cls.TOOL_OUTPUT_DEFINITION.copy()
+
+    @classmethod
     def get_all_tools(cls) -> List[Dict]:
         """Get all GemFilter MCP tools."""
-        return [cls.TOOL_DEFINITION, cls.RESTORE_TOOL_DEFINITION]
+        return [
+            cls.TOOL_DEFINITION,
+            cls.RESTORE_TOOL_DEFINITION,
+            cls.TOOL_OUTPUT_DEFINITION,
+        ]

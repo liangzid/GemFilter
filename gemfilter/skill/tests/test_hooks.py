@@ -11,6 +11,7 @@ from gemfilter.skill.hooks import (
     HookResult,
     pre_send_hook,
     post_receive_hook,
+    tool_output_hook,
     get_hook_manager,
     set_hook_manager,
     filter_text,
@@ -19,6 +20,7 @@ from gemfilter.skill.hooks import (
 from gemfilter.skill.session import SessionManager
 from gemfilter.skill.masker import GemMasker
 from gemfilter.skill.unmasker import GemUnmasker
+from gemfilter.skill.config import SkillConfig, FilterConfig
 from gemfilter.skill.ui import UINotifier, NotificationStyle
 
 
@@ -111,6 +113,22 @@ class TestHookManager:
         assert result.gems_detected >= 1
         assert "test@example.com" not in result.payload
         assert result.notification is not None
+
+    def test_pre_send_stores_fake_to_original_mapping(self):
+        """Session mappings should be keyed by fake value."""
+        manager = HookManager()
+        result = manager.pre_send("Contact: test@example.com", session_id="map-test")
+
+        session = manager.session_manager.get_session("map-test")
+
+        assert result.success is True
+        assert session is not None
+        assert len(session.mappings) >= 1
+        assert all(mapping.fake_value in result.payload for mapping in session.mappings.values())
+        assert any(
+            mapping.original_value == "test@example.com"
+            for mapping in session.mappings.values()
+        )
 
     def test_pre_send_with_session_id(self):
         """Test pre_send with explicit session ID."""
@@ -249,6 +267,83 @@ class TestHookManager:
         manager.register_with_agent(adapter)
 
         adapter.register_hooks.assert_called_once()
+        assert adapter.register_hooks.call_args.kwargs["tool_call"] is not None
+
+    def test_filter_tool_output_string(self):
+        """Test filtering a raw tool output string."""
+        manager = HookManager()
+        result = manager.filter_tool_output(
+            "stdout: OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz123456",
+            session_id="tool-session",
+        )
+
+        assert result.success is True
+        assert result.gems_detected == 1
+        assert "sk-proj-" not in result.payload
+        assert "<OPENAI_KEY_1>" in result.payload
+        assert "tool-session" in manager._active_sessions
+
+    def test_filter_tool_output_dict_recursively(self):
+        """Test recursive filtering of structured tool output."""
+        manager = HookManager()
+        payload = {
+            "tool": "shell",
+            "stdout": "DATABASE_URL=postgres://user:pass@db.internal:5432/app",
+            "stderr": "Contact admin@example.com",
+            "items": ["GITHUB_TOKEN=ghp_abcdefghijklmnopqrstuvwxyzABCDE12345"],
+        }
+
+        result = manager.filter_tool_output(payload, session_id="tool-dict")
+
+        assert result.success is True
+        assert result.gems_detected == 3
+        assert result.payload["tool"] == "shell"
+        assert "db.internal" not in str(result.payload)
+        assert "admin@example.com" not in str(result.payload)
+        assert "ghp_" not in str(result.payload)
+
+    def test_filter_tool_output_reuses_session_mapping(self):
+        """Tool output filtering should reuse pre-send session surrogates."""
+        manager = HookManager()
+        pre_result = manager.pre_send(
+            "Email: user@example.com",
+            session_id="reuse-session",
+        )
+
+        tool_result = manager.filter_tool_output(
+            "Log mentions user@example.com",
+            session_id="reuse-session",
+        )
+
+        fake = pre_result.payload.split("Email: ", 1)[1]
+        assert fake in tool_result.payload
+        assert manager.session_manager.get_session("reuse-session") is not None
+
+    def test_filter_tool_output_can_be_disabled_by_config(self):
+        """Tool-output filtering can be disabled for utility-sensitive contexts."""
+        config = SkillConfig(filter_config=FilterConfig(filter_tool_outputs=False))
+        manager = HookManager(skill_config=config)
+        payload = "OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz123456"
+
+        result = manager.filter_tool_output(payload, session_id="disabled")
+
+        assert result.success is True
+        assert result.gems_detected == 0
+        assert result.payload == payload
+
+    def test_filter_tool_output_skip_marker(self):
+        """A tool payload can explicitly opt out of filtering."""
+        manager = HookManager()
+        payload = {
+            "gemfilter_skip": True,
+            "stdout": "OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz123456",
+        }
+
+        result = manager.filter_tool_output(payload, session_id="skip")
+
+        assert result.success is True
+        assert result.gems_detected == 0
+        assert result.payload == payload
 
 
 class TestStandaloneHookFunctions:
@@ -276,6 +371,14 @@ class TestStandaloneHookFunctions:
         result = post_receive_hook("Hello world")
 
         assert result.success is True
+
+    def test_tool_output_hook(self):
+        """Test tool_output_hook function."""
+        result = tool_output_hook("TOKEN=sk-proj-abcdefghijklmnopqrstuvwxyz123456")
+
+        assert result.success is True
+        assert result.gems_detected >= 1
+        assert "sk-proj-" not in result.payload
 
     def test_filter_text(self):
         """Test filter_text function."""

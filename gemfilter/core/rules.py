@@ -161,6 +161,66 @@ def _init_builtin_rules() -> None:
     ))
 
     register_builtin_rule(DetectionRule(
+        name="github_token",
+        pattern=r"\bgh[pousr]_[A-Za-z0-9_]{30,255}\b",
+        priority=1,
+        sensitive_type="security",
+        group="security",
+        encryptable=True,
+        description="GitHub access token"
+    ))
+
+    register_builtin_rule(DetectionRule(
+        name="anthropic_api_key",
+        pattern=r"\bsk-ant-[A-Za-z0-9_-]{20,}\b",
+        priority=1,
+        sensitive_type="security",
+        group="security",
+        encryptable=True,
+        description="Anthropic API key"
+    ))
+
+    register_builtin_rule(DetectionRule(
+        name="openai_api_key",
+        pattern=r"\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b",
+        priority=1,
+        sensitive_type="security",
+        group="security",
+        encryptable=True,
+        description="OpenAI API key"
+    ))
+
+    register_builtin_rule(DetectionRule(
+        name="npm_token",
+        pattern=r"\bnpm_[A-Za-z0-9]{30,}\b",
+        priority=1,
+        sensitive_type="security",
+        group="security",
+        encryptable=True,
+        description="npm access token"
+    ))
+
+    register_builtin_rule(DetectionRule(
+        name="pypi_token",
+        pattern=r"\bpypi-[A-Za-z0-9_-]{20,}\b",
+        priority=1,
+        sensitive_type="security",
+        group="security",
+        encryptable=True,
+        description="PyPI API token"
+    ))
+
+    register_builtin_rule(DetectionRule(
+        name="jwt",
+        pattern=r"\beyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b",
+        priority=1,
+        sensitive_type="security",
+        group="security",
+        encryptable=True,
+        description="JSON Web Token"
+    ))
+
+    register_builtin_rule(DetectionRule(
         name="api_key_generic",
         pattern=r"sk-[a-zA-Z0-9]{20,}",
         priority=2,
@@ -208,6 +268,26 @@ def _init_builtin_rules() -> None:
         group="security",
         encryptable=False,
         description="Private key header"
+    ))
+
+    register_builtin_rule(DetectionRule(
+        name="database_url",
+        pattern=r"\b(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis)://[^\s<>'\"{}|\\^`\[\]]+",
+        priority=2,
+        sensitive_type="security",
+        group="security",
+        encryptable=True,
+        description="Database connection URL"
+    ))
+
+    register_builtin_rule(DetectionRule(
+        name="dotenv_secret",
+        pattern=r"(?i)\b[A-Z0-9_]*(?:SECRET|TOKEN|API[_-]?KEY|PASSWORD|PASS|PRIVATE[_-]?KEY|ACCESS[_-]?KEY)[A-Z0-9_]*\s*=\s*[\"']?[^\"'\s#]{8,}[\"']?",
+        priority=5,
+        sensitive_type="security",
+        group="security",
+        encryptable=True,
+        description=".env-style secret assignment"
     ))
 
     # Network identifiers

@@ -40,7 +40,8 @@ skill:
     custom_banner: null       # Custom banner template (optional)
 
   # Masking settings
-  mask_style: "partial"       # partial | full | hash
+  mask_style: "partial"       # legacy: partial | full | hash
+  masking_mode: "balanced"    # strict | balanced | utility
   preserve_format: true       # Preserve text length/format
 
   # Agent-specific configuration
@@ -62,6 +63,7 @@ skill:
     config_path: null          # Path to filter config
     auto_update: true          # Allow auto-update of filter core
     enabled_types: []          # Only enable specific gem types
+    filter_tool_outputs: true  # Filter shell/tool/MCP results before model context
 ```
 
 ---
@@ -123,7 +125,53 @@ Types: email, phone, api_key
 
 ---
 
-## Mask Styles
+## Masking Modes
+
+Masking mode controls how GemFilter balances privacy and coding-agent utility.
+
+### Strict
+
+Maximum privacy. Replaces sensitive values with typed placeholders.
+
+```yaml
+masking_mode: "strict"
+```
+
+| Type | Real | Masked |
+|------|------|--------|
+| Email | `john.doe@example.com` | `<EMAIL_1>` |
+| API Key | `sk-proj-abc...` | `<OPENAI_KEY_1>` |
+
+### Balanced (Default)
+
+Preserves useful syntax while hiding sensitive values.
+
+```yaml
+masking_mode: "balanced"
+```
+
+| Type | Real | Masked |
+|------|------|--------|
+| Email | `john.doe@example.com` | `<EMAIL_LOCAL_1>@<EMAIL_DOMAIN_1>` |
+| URL | `https://api.internal/v1` | `https://<HOST_1>/<PATH_1_1>` |
+| API Key | `sk-proj-abc...` | `<OPENAI_KEY_1>` |
+
+### Utility
+
+Uses plausible fake values for contexts that need valid-looking test data.
+
+```yaml
+masking_mode: "utility"
+```
+
+| Type | Real | Masked |
+|------|------|--------|
+| Email | `john.doe@example.com` | `user1@example.test` |
+| IPv4 | `10.1.2.3` | `192.0.2.2` |
+
+Secrets such as passwords, API keys, private keys, and database URLs remain typed placeholders even when utility mode is used.
+
+## Legacy Mask Styles
 
 ### Partial (Default)
 
@@ -189,14 +237,16 @@ python -m gemfilter.skill.install --agent claude_code
 
 ### OpenCode
 
+Current OpenCode versions use a JavaScript plugin array in `~/.config/opencode/opencode.json`. The recommended setup is documented in the main README and `gemfilter/skill/README.md`.
+
 ```yaml
 agents:
   opencode:
     enabled: true
-    # Uses plugin system
+    # Legacy adapter config; current OpenCode should use the JS plugin.
 ```
 
-OpenCode uses a plugin manifest. The adapter creates:
+The legacy Python adapter may create this older shape:
 
 ```json
 {
@@ -209,6 +259,14 @@ OpenCode uses a plugin manifest. The adapter creates:
       }
     }
   }
+}
+```
+
+For OpenCode 1.14+, prefer:
+
+```json
+{
+  "plugin": ["/home/YOUR_USER/.config/opencode/gemfilter-plugin.mjs"]
 }
 ```
 
@@ -263,6 +321,33 @@ filter:
 ```
 
 Available types: `email`, `phone_cn`, `phone_us`, `id_card_cn`, `passport`, `credit_card`, `api_key`, `api_key_generic`, `password`, `bearer_token`, `aws_access_key`, `private_key`, `ipv4`, `ipv6`, `mac_address`, `url`
+
+### Tool-output Filtering
+
+Tool-output filtering protects shell output, file reads, MCP results, and other local tool responses before they enter model context.
+
+```yaml
+filter:
+  filter_tool_outputs: true
+```
+
+Disable it if a workflow requires exact public strings to be passed to the model:
+
+```yaml
+filter:
+  filter_tool_outputs: false
+```
+
+A single structured tool payload can also opt out:
+
+```json
+{
+  "gemfilter_skip": true,
+  "stdout": "public example output"
+}
+```
+
+Use this only for content you are confident is public or intentionally shareable.
 
 ---
 

@@ -46,6 +46,7 @@ class TestCodexAdapter:
 
         assert "filter" in paths
         assert "restore" in paths
+        assert "tool_output" in paths
 
     @patch("pathlib.Path.exists")
     def test_install_success(self, mock_exists):
@@ -78,7 +79,8 @@ class TestCodexAdapter:
                 },
                 "resources": {
                     "gemfilter://filter": {"type": "filter"},
-                    "gemfilter://restore": {"type": "restore"}
+                    "gemfilter://restore": {"type": "restore"},
+                    "gemfilter://tool-output": {"type": "tool_output_filter"},
                 }
             }))
 
@@ -152,10 +154,19 @@ class TestMCPTool:
         """Test getting all tools."""
         tools = MCPTool.get_all_tools()
 
-        assert len(tools) == 2
+        assert len(tools) == 3
         tool_names = [t["name"] for t in tools]
         assert "gemfilter" in tool_names
         assert "gemfilter_restore" in tool_names
+        assert "gemfilter_filter_tool_output" in tool_names
+
+    def test_get_tool_output_filter(self):
+        """Test getting tool output filter definition."""
+        tool = MCPTool.get_tool_output_filter()
+
+        assert tool["name"] == "gemfilter_filter_tool_output"
+        assert "inputSchema" in tool
+        assert "payload" in tool["inputSchema"]["properties"]
 
     def test_filter_tool_schema(self):
         """Test filter tool input schema."""

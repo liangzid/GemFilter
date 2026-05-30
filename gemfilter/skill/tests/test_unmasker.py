@@ -150,7 +150,7 @@ class TestGemUnmasker:
         result = unmasker._mask_new_gems(text)
 
         assert "sk-abcdefghijk1234567890" not in result
-        assert "[API_KEY_GENERIC]" in result
+        assert "[OPENAI_API_KEY]" in result
 
     def test_mask_new_gems_no_gems(self):
         """Test masking text with no gems."""

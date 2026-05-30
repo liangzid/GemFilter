@@ -27,6 +27,7 @@ class ClaudeCodeAdapter(AgentAdapter):
     HOOK_TEMPLATE = {
         "onBeforeSend": None,
         "onAfterReceive": None,
+        "onToolOutput": None,
     }
 
     def __init__(
@@ -79,6 +80,9 @@ class ClaudeCodeAdapter(AgentAdapter):
             settings["hooks"]["onAfterReceive"] = (
                 "gemfilter.skill.hooks.post_receive_hook"
             )
+            settings["hooks"]["onToolOutput"] = (
+                "gemfilter.skill.hooks.tool_output_hook"
+            )
 
             self._save_settings(settings)
             logger.info("Claude Code adapter installed successfully")
@@ -105,6 +109,7 @@ class ClaudeCodeAdapter(AgentAdapter):
                 if "hooks" in settings:
                     settings["hooks"].pop("onBeforeSend", None)
                     settings["hooks"].pop("onAfterReceive", None)
+                    settings["hooks"].pop("onToolOutput", None)
                     self._save_settings(settings)
 
             logger.info("Claude Code adapter uninstalled successfully")
@@ -165,6 +170,7 @@ class ClaudeCodeAdapter(AgentAdapter):
         return {
             "onBeforeSend": "gemfilter.skill.hooks.pre_send_hook",
             "onAfterReceive": "gemfilter.skill.hooks.post_receive_hook",
+            "onToolOutput": "gemfilter.skill.hooks.tool_output_hook",
         }
 
     def validate_installation(self) -> bool:
@@ -180,6 +186,7 @@ class ClaudeCodeAdapter(AgentAdapter):
             return (
                 hooks.get("onBeforeSend") == "gemfilter.skill.hooks.pre_send_hook"
                 and hooks.get("onAfterReceive") == "gemfilter.skill.hooks.post_receive_hook"
+                and hooks.get("onToolOutput") == "gemfilter.skill.hooks.tool_output_hook"
             )
         except Exception:
             return False
@@ -212,6 +219,7 @@ class ClaudeCodeAdapter(AgentAdapter):
             if "hooks" in settings:
                 settings["hooks"]["onBeforeSend"] = None
                 settings["hooks"]["onAfterReceive"] = None
+                settings["hooks"]["onToolOutput"] = None
                 self._save_settings(settings)
             return True
         except Exception as e:

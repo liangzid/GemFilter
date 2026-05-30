@@ -47,28 +47,22 @@ def filter_command(args):
     result = sf.filter(text)
 
     if args.json:
-        print(json.dumps({
-            "text": result.text,
-            "detections": [
-                {
-                    "rule": d.rule_name,
-                    "match": d.match,
-                    "start": d.start,
-                    "end": d.end,
-                    "sensitive_type": d.sensitive_type,
-                    "replacement": d.replacement,
-                }
-                for d in result.detections
-            ],
-            "summary": result.summary,
-        }, ensure_ascii=False, indent=2))
+        print(json.dumps(
+            result.to_dict(include_matches=args.unsafe_include_matches),
+            ensure_ascii=False,
+            indent=2,
+        ))
     else:
         print(result.text)
 
     if args.verbose:
         print(f"\nDetected {len(result.detections)} sensitive items:", file=sys.stderr)
         for d in result.detections:
-            print(f"  [{d.rule_name}] {d.match}", file=sys.stderr)
+            if args.unsafe_include_matches:
+                detail = d.match
+            else:
+                detail = f"<redacted len={len(d.match)}>"
+            print(f"  [{d.rule_name}] {detail}", file=sys.stderr)
 
     return 0
 
@@ -151,6 +145,11 @@ def main():
         "-v", "--verbose",
         action="store_true",
         help="Show detection details",
+    )
+    filter_parser.add_argument(
+        "--unsafe-include-matches",
+        action="store_true",
+        help="Include raw sensitive matches in JSON/verbose output for local debugging",
     )
 
     # List rules command

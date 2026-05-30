@@ -77,6 +77,7 @@ class OpenCodeAdapter(AgentAdapter):
                 "hooks": {
                     "pre_send": "gemfilter.skill.hooks.pre_send_hook",
                     "post_receive": "gemfilter.skill.hooks.post_receive_hook",
+                    "tool_output": "gemfilter.skill.hooks.tool_output_hook",
                 },
             }
 
@@ -161,6 +162,7 @@ class OpenCodeAdapter(AgentAdapter):
         return {
             "pre_send": "gemfilter.skill.hooks.pre_send_hook",
             "post_receive": "gemfilter.skill.hooks.post_receive_hook",
+            "tool_output": "gemfilter.skill.hooks.tool_output_hook",
         }
 
     def validate_installation(self) -> bool:
@@ -210,6 +212,7 @@ class OpenCodePlugin:
         "hooks": {
             "pre_send": "gemfilter.skill.hooks.pre_send_hook",
             "post_receive": "gemfilter.skill.hooks.post_receive_hook",
+            "tool_output": "gemfilter.skill.hooks.tool_output_hook",
         },
         "permissions": ["network", "filesystem"],
     }
