@@ -253,6 +253,7 @@ class TestFilterResult:
     def test_result_to_dict_omits_matches_by_default(self):
         """Serialized results should not expose raw sensitive values."""
         sf = SandFilter()
+        sf.enable_rules("email")
         result = sf.filter("Contact: user@example.com")
 
         data = result.to_dict()
@@ -264,6 +265,7 @@ class TestFilterResult:
     def test_result_to_dict_can_include_matches_for_debug(self):
         """Raw matches require an explicit unsafe debug opt-in."""
         sf = SandFilter()
+        sf.enable_rules("email")
         result = sf.filter("Contact: user@example.com")
 
         data = result.to_dict(include_matches=True)

@@ -12,7 +12,9 @@ from gemfilter.server.main import FilterHandler
 
 
 def _run_test_server():
-    FilterHandler.gemfilter = SandFilter()
+    sf = SandFilter()
+    sf.enable_rules("email")
+    FilterHandler.gemfilter = sf
     server = HTTPServer(("127.0.0.1", 0), FilterHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()

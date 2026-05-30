@@ -116,7 +116,7 @@ class TestHookManager:
 
     def test_pre_send_stores_fake_to_original_mapping(self):
         """Session mappings should be keyed by fake value."""
-        manager = HookManager()
+        manager = make_hook_manager("email")
         result = manager.pre_send("Contact: test@example.com", session_id="map-test")
 
         session = manager.session_manager.get_session("map-test")
@@ -285,7 +285,7 @@ class TestHookManager:
 
     def test_filter_tool_output_dict_recursively(self):
         """Test recursive filtering of structured tool output."""
-        manager = HookManager()
+        manager = make_hook_manager("email")
         payload = {
             "tool": "shell",
             "stdout": "DATABASE_URL=postgres://user:pass@db.internal:5432/app",

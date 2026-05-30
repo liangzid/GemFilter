@@ -7,12 +7,12 @@ from gemfilter.skill.masker import GemMasker
 from gemfilter import SandFilter
 
 
-def make_masker(*enable_rules):
+def make_masker(*enable_rules, **kwargs):
     """Create a GemMasker with specified rules enabled."""
     sf = SandFilter()
     if enable_rules:
         sf.enable_rules(*enable_rules)
-    return GemMasker(filter_engine=sf)
+    return GemMasker(filter_engine=sf, **kwargs)
 
 
 class TestGemMasker:
@@ -296,7 +296,7 @@ class TestMaskingModes:
     """Tests for strict, balanced, and utility masking modes."""
 
     def test_strict_mode_uses_typed_placeholder(self):
-        masker = GemMasker(masking_mode="strict")
+        masker = make_masker("email", masking_mode="strict")
 
         masked_text, mapping = masker.mask("Email: user@example.com")
 
@@ -304,7 +304,7 @@ class TestMaskingModes:
         assert mapping == {"<EMAIL_1>": "user@example.com"}
 
     def test_balanced_mode_preserves_email_syntax_without_domain(self):
-        masker = GemMasker(masking_mode="balanced")
+        masker = make_masker("email", masking_mode="balanced")
 
         masked_text, mapping = masker.mask("Email: user@example.com")
 
@@ -315,7 +315,7 @@ class TestMaskingModes:
         }
 
     def test_utility_mode_uses_format_preserving_fake(self):
-        masker = GemMasker(masking_mode="utility")
+        masker = make_masker("email", masking_mode="utility")
 
         masked_text, mapping = masker.mask("Email: user@example.com")
 
@@ -323,7 +323,7 @@ class TestMaskingModes:
         assert mapping == {"user1@example.test": "user@example.com"}
 
     def test_existing_mapping_is_reused(self):
-        masker = GemMasker(masking_mode="strict")
+        masker = make_masker("email", masking_mode="strict")
 
         masked_text, mapping = masker.mask(
             "Again: user@example.com",
@@ -334,7 +334,18 @@ class TestMaskingModes:
         assert mapping == {"<EMAIL_7>": "user@example.com"}
 
     def test_balanced_url_masks_host_query_and_path_structure(self):
-        masker = GemMasker(masking_mode="balanced")
+        sf = SandFilter()
+        from gemfilter import DetectionRule
+        sf.add_rule(DetectionRule(
+            name="url",
+            pattern=r"https?://[^\s<>'\"{}|\\^`\[\]]+",
+            priority=60,
+            sensitive_type="network",
+            group="network",
+            enabled=True,
+            description="URL",
+        ))
+        masker = GemMasker(masking_mode="balanced", filter_engine=sf)
 
         masked_text, mapping = masker.mask("Visit https://api.internal.test:8443/v1/users?id=123")
 
