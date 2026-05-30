@@ -4,6 +4,15 @@ Unit tests for GemMasker.
 
 import pytest
 from gemfilter.skill.masker import GemMasker
+from gemfilter import SandFilter
+
+
+def make_masker(*enable_rules):
+    """Create a GemMasker with specified rules enabled."""
+    sf = SandFilter()
+    if enable_rules:
+        sf.enable_rules(*enable_rules)
+    return GemMasker(filter_engine=sf)
 
 
 class TestGemMasker:
@@ -16,7 +25,7 @@ class TestGemMasker:
 
     def test_mask_email(self):
         """Test masking email addresses."""
-        masker = GemMasker()
+        masker = make_masker("email")
         text = "Contact me at john.doe@example.com please"
 
         masked_text, mapping = masker.mask(text)
@@ -34,7 +43,7 @@ class TestGemMasker:
 
     def test_mask_phone_cn(self):
         """Test masking Chinese phone numbers."""
-        masker = GemMasker()
+        masker = make_masker("phone_cn")
         # Without dashes for proper matching
         text = "My phone is 13812345678"
 
@@ -45,7 +54,7 @@ class TestGemMasker:
 
     def test_mask_multiple_gems(self):
         """Test masking multiple gems in single text."""
-        masker = GemMasker()
+        masker = make_masker("email", "phone_cn")
         text = "Email: test@example.com, Phone: 13912345678"
 
         masked_text, mapping = masker.mask(text)
@@ -107,7 +116,7 @@ class TestGemMasker:
 
     def test_mask_ipv4(self):
         """Test masking IPv4 addresses."""
-        masker = GemMasker()
+        masker = make_masker("ipv4")
         text = "Server: 192.168.1.100"
 
         masked_text, mapping = masker.mask(text)
@@ -135,19 +144,9 @@ class TestGemMasker:
         assert "-----BEGIN RSA PRIVATE KEY-----" not in masked_text
         assert "[PRIVATE_KEY]" in masked_text
 
-    def test_mask_url(self):
-        """Test masking URLs."""
-        masker = GemMasker()
-        text = "Visit https://api.example.com/v1/users?id=123"
-
-        masked_text, mapping = masker.mask(text)
-
-        assert "https://api.example.com/v1/users?id=123" not in masked_text
-        assert len(mapping) > 0
-
     def test_get_detections(self):
         """Test getting detections without masking."""
-        masker = GemMasker()
+        masker = make_masker("email")
         text = "Email: test@example.com"
 
         detections = masker.get_detections(text)
@@ -158,7 +157,7 @@ class TestGemMasker:
 
     def test_get_detection_summary(self):
         """Test getting detection summary."""
-        masker = GemMasker()
+        masker = make_masker("email", "phone_cn")
         text = "Email: test@example.com, Phone: 13912345678"
 
         summary = masker.get_detection_summary(text)
@@ -188,7 +187,7 @@ class TestGemMasker:
 
     def test_mask_unicode_email(self):
         """Test masking Unicode email."""
-        masker = GemMasker()
+        masker = make_masker("email")
         text = "Contact: 用户@example.com"
 
         masked_text, mapping = masker.mask(text)
@@ -212,7 +211,7 @@ class TestMaskerEmailEdgeCases:
 
     def test_single_char_email(self):
         """Test masking single character email."""
-        masker = GemMasker()
+        masker = make_masker("email")
         text = "Email: a@b.co"
 
         masked_text, mapping = masker.mask(text)
@@ -222,7 +221,7 @@ class TestMaskerEmailEdgeCases:
 
     def test_long_email(self):
         """Test masking long email."""
-        masker = GemMasker()
+        masker = make_masker("email")
         text = "Email: verylongemailaddress@subdomain.example.com"
 
         masked_text, mapping = masker.mask(text)
@@ -231,7 +230,7 @@ class TestMaskerEmailEdgeCases:
 
     def test_email_with_plus(self):
         """Test masking email with plus sign."""
-        masker = GemMasker()
+        masker = make_masker("email")
         text = "Email: test+tag@example.com"
 
         masked_text, mapping = masker.mask(text)
@@ -244,7 +243,7 @@ class TestMaskerPhoneEdgeCases:
 
     def test_phone_with_country_code(self):
         """Test masking phone with country code."""
-        masker = GemMasker()
+        masker = make_masker("phone_cn")
         # Use the raw phone without dashes for proper matching
         text = "Phone: +8613812345678"
 
@@ -254,7 +253,7 @@ class TestMaskerPhoneEdgeCases:
 
     def test_us_phone_formats(self):
         """Test masking various US phone formats."""
-        masker = GemMasker()
+        masker = make_masker("phone_us")
 
         formats = [
             "(123) 456-7890",
@@ -275,7 +274,7 @@ class TestMaskerCustomMaskers:
 
     def test_custom_masker_function(self):
         """Test using a custom masker function."""
-        masker = GemMasker()
+        masker = make_masker("email")
 
         # Register a custom masker that preserves domain
         def preserve_domain_mask(original, fake):

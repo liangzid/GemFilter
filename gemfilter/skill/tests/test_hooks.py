@@ -5,6 +5,7 @@ Unit tests for HookManager and hooks.
 import pytest
 from unittest.mock import MagicMock, patch
 
+from gemfilter import SandFilter
 from gemfilter.skill.hooks import (
     HookManager,
     HookResult,
@@ -19,6 +20,15 @@ from gemfilter.skill.session import SessionManager
 from gemfilter.skill.masker import GemMasker
 from gemfilter.skill.unmasker import GemUnmasker
 from gemfilter.skill.ui import UINotifier, NotificationStyle
+
+
+def make_hook_manager(*enable_rules):
+    """Create a HookManager with specified rules enabled."""
+    sf = SandFilter()
+    if enable_rules:
+        sf.enable_rules(*enable_rules)
+    masker = GemMasker(filter_engine=sf)
+    return HookManager(masker=masker)
 
 
 class TestHookResult:
@@ -94,18 +104,17 @@ class TestHookManager:
 
     def test_pre_send_with_gems(self):
         """Test pre_send with gems."""
-        manager = HookManager()
+        manager = make_hook_manager("email")
         result = manager.pre_send("Contact: test@example.com")
 
         assert result.success is True
         assert result.gems_detected >= 1
         assert "test@example.com" not in result.payload
         assert result.notification is not None
-        assert "🔒" in result.notification
 
     def test_pre_send_with_session_id(self):
         """Test pre_send with explicit session ID."""
-        manager = HookManager()
+        manager = make_hook_manager("email")
         result = manager.pre_send("Email: test@example.com", session_id="my-session")
 
         assert result.success is True
@@ -113,7 +122,7 @@ class TestHookManager:
 
     def test_pre_send_dict_payload(self):
         """Test pre_send with dict payload."""
-        manager = HookManager()
+        manager = make_hook_manager("email")
         payload = {"text": "Contact: test@example.com", "user": "john"}
 
         result = manager.pre_send(payload)
@@ -124,7 +133,7 @@ class TestHookManager:
 
     def test_pre_send_multiple_gems(self):
         """Test pre_send with multiple gems."""
-        manager = HookManager()
+        manager = make_hook_manager("email", "phone_cn")
         text = "Email: test@example.com, Phone: 13912345678"
 
         result = manager.pre_send(text)
@@ -142,7 +151,7 @@ class TestHookManager:
 
     def test_post_receive_with_fakes(self):
         """Test post_receive with fake placeholders."""
-        manager = HookManager()
+        manager = make_hook_manager("email")
 
         # First mask some text
         pre_result = manager.pre_send("Email: test@example.com")
@@ -157,7 +166,7 @@ class TestHookManager:
 
     def test_post_receive_cleans_session(self):
         """Test post_receive cleans up session."""
-        manager = HookManager()
+        manager = make_hook_manager("email")
 
         pre_result = manager.pre_send("Email: test@example.com")
         session_id = list(manager._active_sessions.keys())[0]
@@ -246,12 +255,18 @@ class TestStandaloneHookFunctions:
     """Tests for standalone hook functions."""
 
     def setup_method(self):
-        """Reset global hook manager."""
-        set_hook_manager(None)
+        """Reset global hook manager and create one with email enabled."""
+        sf = SandFilter()
+        sf.enable_rules("email")
+        manager = HookManager(masker=GemMasker(filter_engine=sf))
+        set_hook_manager(manager)
 
     def test_pre_send_hook(self):
         """Test pre_send_hook function."""
         result = pre_send_hook("Contact: test@example.com")
+
+        assert result.success is True
+        assert result.gems_detected >= 1
 
         assert result.success is True
         assert result.gems_detected >= 1
@@ -267,7 +282,6 @@ class TestStandaloneHookFunctions:
         masked, mapping, notification = filter_text("Contact: test@example.com")
 
         assert "test@example.com" not in masked
-        assert "🔒" in notification
 
     def test_sanitize_response(self):
         """Test sanitize_response function."""
@@ -289,7 +303,7 @@ class TestHookManagerEdgeCases:
 
     def test_pre_send_very_long_text(self):
         """Test pre_send with very long text."""
-        manager = HookManager()
+        manager = make_hook_manager("email")
         # Create text with gems spread throughout
         gem = "test@example.com"
         text = (gem + ", ") * 100
@@ -301,7 +315,7 @@ class TestHookManagerEdgeCases:
 
     def test_pre_send_special_characters(self):
         """Test pre_send with special characters."""
-        manager = HookManager()
+        manager = make_hook_manager("email", "phone_cn")
         text = "Email: test@example.com\nPhone: 13912345678\tAPI: sk-key123"
 
         result = manager.pre_send(text)
@@ -310,7 +324,7 @@ class TestHookManagerEdgeCases:
 
     def test_multiple_pre_send_same_session(self):
         """Test multiple pre_sends in same session."""
-        manager = HookManager()
+        manager = make_hook_manager("email", "phone_cn")
         session_id = manager._session_manager.create_session("test")
 
         result1 = manager.pre_send("Email: a@b.com", session_id)

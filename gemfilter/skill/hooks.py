@@ -58,7 +58,7 @@ class HookManager:
         self._session_manager = session_manager or get_session_manager()
         self._masker = masker or GemMasker()
         self._unmasker = unmasker or GemUnmasker()
-        self._notifier = notifier or UINotifier()
+        self._notifier = notifier or UINotifier(style=NotificationStyle.PROMINENT)
         self._config = skill_config or load_skill_config()
         self._lock = threading.RLock()
         self._active_sessions: Dict[str, bool] = {}
@@ -134,6 +134,11 @@ class HookManager:
 
                 # Mask gems
                 masked_text, mapping = self._masker.mask(text)
+
+                # Prepend LLM-facing header so the LLM knows what was masked
+                llm_header = self._notifier.get_llm_header(gem_count, gem_types)
+                if llm_header:
+                    masked_text = llm_header + masked_text
 
                 # Store mapping in session
                 # mapping is fake -> original

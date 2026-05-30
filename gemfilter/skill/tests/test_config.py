@@ -32,6 +32,7 @@ class TestNotificationStyle:
         assert NotificationStyle.BANNER.value == "banner"
         assert NotificationStyle.INLINE.value == "inline"
         assert NotificationStyle.DETAILED.value == "detailed"
+        assert NotificationStyle.PROMINENT.value == "prominent"
 
 
 class TestMaskStyle:

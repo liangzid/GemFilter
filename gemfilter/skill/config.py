@@ -19,6 +19,7 @@ class NotificationStyle(Enum):
     BANNER = "banner"
     INLINE = "inline"
     DETAILED = "detailed"
+    PROMINENT = "prominent"
 
 
 class MaskStyle(Enum):

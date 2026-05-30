@@ -35,6 +35,22 @@ class UINotifier:
     DEFAULT_DETAILED = """🔒 GemFilter Active
 Protected: {count} gem(s)
 Types: {types}"""
+    DEFAULT_PROMINENT = """\
+╔══════════════════════════════════════════════════╗
+║  ⚠️  GEMFILTER: SENSITIVE INFO PROTECTED        ║
+║  {count} item(s) masked: {types}                ║
+║  Sending filtered content to LLM...             ║
+╚══════════════════════════════════════════════════╝"""
+
+    # LLM-facing header injected into masked text
+    DEFAULT_LLM_HEADER = """\
+[GEMFILTER SECURITY NOTICE]
+The following text has been filtered to protect sensitive information.
+Masked types: {types}
+{count} item(s) were replaced with safe placeholders like [TYPE_NAME].
+Do NOT attempt to reconstruct or infer the original masked values.
+──────────────────────────────────────────────────
+"""
 
     # Unicode symbols for gem types
     GEM_SYMBOLS: Dict[str, str] = {
@@ -110,7 +126,6 @@ Types: {types}"""
 
         types_str = ", ".join(masked_types) if masked_types else "unknown"
 
-        # Select template
         if self._custom_banner:
             template = self._custom_banner
         elif self._style == NotificationStyle.BANNER:
@@ -119,16 +134,46 @@ Types: {types}"""
             template = self.DEFAULT_INLINE
         elif self._style == NotificationStyle.DETAILED:
             template = self.DEFAULT_DETAILED
+        elif self._style == NotificationStyle.PROMINENT:
+            template = self.DEFAULT_PROMINENT
         else:
             template = self.DEFAULT_BANNER
 
-        # Format message
         message = template.format(
             count=gem_count,
             types=types_str,
         )
 
         return message
+
+    def get_llm_header(
+        self,
+        gem_count: int,
+        gem_types: Optional[List[str]] = None,
+    ) -> str:
+        """
+        Generate a header to prepend to masked text sent to the LLM.
+
+        This informs the LLM about what types of information were masked,
+        helping it understand why certain data appears as placeholders.
+
+        Args:
+            gem_count: Number of gems protected
+            gem_types: List of gem types that were masked
+
+        Returns:
+            Header string to prepend to LLM-facing text
+        """
+        if self._style == NotificationStyle.SILENT or gem_count == 0:
+            return ""
+        if not gem_types:
+            gem_types = []
+
+        types_str = ", ".join(gem_types) if gem_types else "unknown"
+        return self.DEFAULT_LLM_HEADER.format(
+            count=gem_count,
+            types=types_str,
+        )
 
     def get_banner(self) -> str:
         """

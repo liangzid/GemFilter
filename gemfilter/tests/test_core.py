@@ -12,6 +12,7 @@ class TestSandFilter:
     def test_basic_filter(self):
         """Test basic filtering with default settings."""
         sf = SandFilter()
+        sf.enable_rules("email")
         result = sf.filter("我的邮箱是 test@example.com")
 
         assert "[EMAIL]" in result.text
@@ -20,6 +21,7 @@ class TestSandFilter:
     def test_multiple_detections(self):
         """Test filtering multiple sensitive items."""
         sf = SandFilter()
+        sf.enable_rules("email", "phone_cn")
         text = "邮箱: test@example.com, 手机: 13800138000"
         result = sf.filter(text)
 
@@ -29,6 +31,7 @@ class TestSandFilter:
     def test_disabled_rules(self):
         """Test disabling specific rules."""
         sf = SandFilter()
+        sf.enable_rules("email")
         sf.disable_rules("email")
 
         result = sf.filter("test@example.com")
@@ -46,6 +49,7 @@ class TestSandFilter:
     def test_group_operations(self):
         """Test group enable/disable."""
         sf = SandFilter()
+        sf.enable_group("contact")
         sf.disable_group("contact")
 
         result = sf.filter("test@example.com and 13800138000")
@@ -119,12 +123,14 @@ class TestBuiltInRules:
     def test_email_detection(self):
         """Test email detection."""
         sf = SandFilter()
+        sf.enable_rules("email")
         result = sf.filter("Contact: user@domain.com")
         assert "[EMAIL]" in result.text
 
     def test_phone_cn_detection(self):
         """Test Chinese phone detection."""
         sf = SandFilter()
+        sf.enable_rules("phone_cn")
         result = sf.filter("手机号: 13912345678")
         assert "[PHONE_CN]" in result.text
 
@@ -152,6 +158,7 @@ class TestBuiltInRules:
     def test_ipv4_detection(self):
         """Test IPv4 detection."""
         sf = SandFilter()
+        sf.enable_rules("ipv4")
         result = sf.filter("Server: 192.168.1.1")
         assert "[IPV4]" in result.text
 
@@ -162,6 +169,7 @@ class TestFilterResult:
     def test_summary_generation(self):
         """Test summary is generated correctly."""
         sf = SandFilter()
+        sf.enable_rules("email")
         result = sf.filter("a@b.com c@d.com e@f.com")
 
         # Summary uses rule_name as key

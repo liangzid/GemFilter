@@ -70,6 +70,7 @@ def _init_builtin_rules() -> None:
         sensitive_type="contact",
         group="contact",
         encryptable=True,
+        enabled=False,
         description="Email address"
     ))
 
@@ -80,6 +81,7 @@ def _init_builtin_rules() -> None:
         sensitive_type="contact",
         group="contact",
         encryptable=True,
+        enabled=False,
         description="Chinese mobile phone number"
     ))
 
@@ -90,6 +92,7 @@ def _init_builtin_rules() -> None:
         sensitive_type="contact",
         group="contact",
         encryptable=True,
+        enabled=False,
         description="US phone number"
     ))
 
@@ -132,6 +135,7 @@ def _init_builtin_rules() -> None:
         sensitive_type="financial",
         group="financial",
         encryptable=True,
+        enabled=False,
         description="Chinese bank account number"
     ))
 
@@ -214,6 +218,7 @@ def _init_builtin_rules() -> None:
         sensitive_type="network",
         group="network",
         encryptable=False,
+        enabled=False,
         description="IPv4 address"
     ))
 
@@ -224,6 +229,7 @@ def _init_builtin_rules() -> None:
         sensitive_type="network",
         group="network",
         encryptable=False,
+        enabled=False,
         description="IPv6 address"
     ))
 
@@ -234,31 +240,9 @@ def _init_builtin_rules() -> None:
         sensitive_type="network",
         group="network",
         encryptable=False,
+        enabled=False,
         description="MAC address"
     ))
-
-    # URL and domain
-    register_builtin_rule(DetectionRule(
-        name="url",
-        pattern=r"https?://[^\s<>'\"{}|\\^`\[\]]+",
-        priority=60,
-        sensitive_type="network",
-        group="network",
-        encryptable=False,
-        description="URL"
-    ))
-
-    # Miscellaneous
-    register_builtin_rule(DetectionRule(
-        name="mac_address",
-        pattern=r"(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}",
-        priority=52,
-        sensitive_type="network",
-        group="network",
-        encryptable=False,
-        description="MAC address"
-    ))
-
 
 # Initialize rules on module import
 _init_builtin_rules()

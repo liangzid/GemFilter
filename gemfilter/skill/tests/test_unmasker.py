@@ -4,6 +4,7 @@ Unit tests for GemUnmasker.
 
 import pytest
 from gemfilter.skill.unmasker import GemUnmasker, ResponseSanitizer
+from gemfilter import SandFilter
 
 
 class TestGemUnmasker:
@@ -50,7 +51,9 @@ class TestGemUnmasker:
 
     def test_restore_with_check_content(self):
         """Test restoring with new gem detection in response."""
-        unmasker = GemUnmasker(check_response_content=True)
+        sf = SandFilter()
+        sf.enable_rules("email")
+        unmasker = GemUnmasker(filter_engine=sf, check_response_content=True)
         text = "Your email is newuser@gmail.com"
 
         result = unmasker.restore(text, "test-session")
@@ -211,7 +214,10 @@ class TestResponseSanitizer:
 
     def test_get_detections(self):
         """Test getting detections from sanitizer."""
-        sanitizer = ResponseSanitizer()
+        sf = SandFilter()
+        sf.enable_rules("email")
+        unmasker = GemUnmasker(filter_engine=sf)
+        sanitizer = ResponseSanitizer(unmasker=unmasker)
         text = "Contact me at test@example.com"
 
         detections = sanitizer.get_detections(text)
